@@ -1,296 +1,100 @@
 # Trip Expense Tracker
 
-A Python Flask application for tracking expenses for an 8-member trip.
+A Flask-based trip expense management application for 8 members.
 
+## Features
 
-## Expense Categories
-
-The application supports:
-
-- Petrol
+- 8 trip members
+- Contribution amount collected by Hitesh
+- Trip visit date
+- Live clock
+- Daily expense tracking
+- Breakfast
+- Tea
+- Coffee
 - Lunch
 - Dinner
-- Drinks
+- Fuel
 - Toll
-- Other
-
-
-## Each Expense Contains
-
-Every expense stores:
-
-- Date
-- Time
-- Category
-- Amount
-- Person who paid
-- Location
-- Description
-- Receipt / bill reference
-- Creation timestamp
-
-
-## Dashboard
-
-The dashboard displays:
-
+- Other expenses
+- Exact expense time
+- Paid-by member
+- Per-expense sharing selection
+- Two vehicles
+- Vikramsingh Vehicle
+- Navendu Vehicle
+- Daily expense total
 - Total trip expense
-- Number of expense entries
-- Equal share per member
-- Category-wise totals
-- Category chart
-- Amount paid by each member
-- Member settlement difference
-- Complete expense history
+- Remaining contribution amount
+- Automatic final member split
+- Custom final member split
+- Settlement suggestions
+- GitHub automatic data backup
 
+## Vehicle Accounting
 
-# Installation - Windows
+Vehicle expenses can be recorded against:
 
+- Vikramsingh Vehicle
+- Navendu Vehicle
 
-## 1. Install Python
+For every expense you can select exactly which members share the expense.
 
-Install Python 3.10 or newer.
+## Final Settlement
 
+The application calculates:
 
-## 2. Install Git
+Paid by member
+minus
+Final member share
 
-Install Git for Windows.
+Positive balance means the member receives money.
 
+Negative balance means the member pays money.
 
-## 3. Create virtual environment
+## Custom Split
 
-Open PowerShell inside the project directory:
+The automatic split can be manually changed.
 
-```powershell
-py -m venv .venv
-````
+The application checks that the custom member shares equal the total trip expense before saving.
 
-## 4. Activate environment
+## GitHub
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+The application automatically backs up:
 
-## 5. Install packages
+- data/expenses.json
+- data/members.json
+- data/settings.json
 
-```powershell
-pip install -r requirements.txt
-```
-
-## 6. Start application
-
-```powershell
-python app.py
-```
-
-Open:
-
-```text
-http://localhost:5000
-```
-
-# GitHub Setup
-
-Create a private GitHub repository.
+Configure the repository in `.env`.
 
 Example:
 
-```text
-trip-expense-tracker
-```
+GITHUB_REPO_URL=https://github.com/ssalunke1979/project-drishyam-3.git
+GITHUB_BRANCH=trip
 
-Then configure Git:
-
-```powershell
-git config --global user.name "YOUR NAME"
-
-git config --global user.email "YOUR EMAIL"
-```
-
-Initialize the repository:
-
-```powershell
-git init
-
-git branch -M main
-```
-
-Add your GitHub remote:
-
-```powershell
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-```
-
-Initial push:
-
-```powershell
-git add .
-
-git commit -m "Initial trip expense tracker"
-
-git push -u origin main
-```
-
-## GitHub Authentication
-
-Do not put your GitHub password or token inside `app.py`.
-
-Use Git Credential Manager or SSH authentication.
-
-Once:
-
-```text
-git push
-```
-
-works successfully from PowerShell, the application can automatically execute:
-
-```text
-git add
-git commit
-git push
-```
-
-whenever expense data changes.
-
-# Linux / Ubuntu
-
-Create environment:
-
-```bash
-python3 -m venv .venv
-```
-
-Activate:
-
-```bash
-source .venv/bin/activate
-```
-
-Install:
-
-```bash
-pip install -r requirements.txt
-```
+## Windows
 
 Run:
 
-```bash
+run_windows.bat
+
+Or:
+
 python app.py
-```
 
 Open:
 
-```text
 http://localhost:5000
-```
 
-# LAN Access
+## Linux
 
-The Flask server listens on:
+Run:
 
-```text
-0.0.0.0
-```
+chmod +x run_linux.sh
 
-Therefore another device on the same network can access it.
+./run_linux.sh
 
-Find your computer IP:
+Open:
 
-Windows:
-
-```powershell
-ipconfig
-```
-
-Example:
-
-```text
-192.168.1.20
-```
-
-Then use:
-
-```text
-http://192.168.1.20:5000
-```
-
-# Data
-
-Trip expense data:
-
-```text
-data/expenses.json
-```
-
-Member names:
-
-```text
-data/members.json
-```
-
-# GitHub Backup
-
-When an expense is added:
-
-```text
-data/expenses.json
-        ↓
-git add
-        ↓
-git commit
-        ↓
-git push
-        ↓
-GitHub
-```
-
-When an expense is deleted, the same process occurs.
-
-# Security
-
-Use a private GitHub repository.
-
-Do not commit:
-
-```text
-.env
-```
-
-Do not put:
-
-```text
-GitHub password
-GitHub token
-SSH private key
-```
-
-inside the application source code.
-
-# Future Enhancements
-
-Possible next versions can add:
-
-* Receipt photo upload
-* Camera capture
-* Individual expense splitting
-* Automatic settlement calculation
-* Cash / UPI / Card
-* Petrol quantity in litres
-* Petrol price per litre
-* Vehicle number
-* KM travelled
-* Toll plaza name
-* Lunch restaurant
-* Dinner restaurant
-* Drinks details
-* Excel export
-* PDF report
-* WhatsApp sharing
-* Multiple trips
-* Login
-* Mobile PWA
-* GitHub sync status
-* Automatic daily backup
-
-
+http://localhost:5000

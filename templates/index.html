@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -16,1060 +14,1596 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 </head>
-
 
 <body>
 
+<div class="app-shell">
 
-<header class="topbar">
+    <!-- =====================================================
+         TOP BAR
+         ===================================================== -->
 
-    <div class="header-inner">
+    <header class="topbar">
 
         <div>
-
             <div class="eyebrow">
-                TRIP FINANCE
+                TRIP MANAGEMENT
             </div>
 
             <h1>
                 Trip Expense Tracker
             </h1>
 
-            <p>
-                8 Members · Per-Expense Splitting
+            <p class="subtitle">
+                Track contributions, daily expenses,
+                vehicles and final settlement.
             </p>
-
         </div>
 
-    </div>
+        <div class="topbar-right">
 
-</header>
+            <div class="live-clock-card">
 
-
-
-<main class="container">
-
-
-{% with messages = get_flashed_messages(with_categories=true) %}
-
-    {% if messages %}
-
-        <div class="messages">
-
-            {% for category, message in messages %}
-
-                <div class="message {{ category }}">
-                    {{ message }}
+                <div class="clock-label">
+                    CURRENT TIME
                 </div>
 
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
-
-{% endwith %}
-
-
-
-<!-- =====================================================
-     TOP SUMMARY
-===================================================== -->
-
-<section class="stats">
-
-
-    <div class="stat primary">
-
-        <span>
-            Total Trip Expense
-        </span>
-
-        <strong>
-            ₹{{ "%.2f"|format(total) }}
-        </strong>
-
-    </div>
-
-
-    <div class="stat">
-
-        <span>
-            Expense Entries
-        </span>
-
-        <strong>
-            {{ expenses|length }}
-        </strong>
-
-    </div>
-
-
-    <div class="stat">
-
-        <span>
-            Members
-        </span>
-
-        <strong>
-            {{ members|length }}
-        </strong>
-
-    </div>
-
-
-</section>
-
-
-
-<!-- =====================================================
-     ADD EXPENSE
-===================================================== -->
-
-<section class="card">
-
-
-    <div class="card-title">
-
-        <div>
-
-            <h2>
-                Add Expense
-            </h2>
-
-            <span>
-                Select exactly who shared this particular expense
-            </span>
-
-        </div>
-
-    </div>
-
-
-
-    <form
-        method="POST"
-        action="{{ url_for('add_expense') }}"
-        class="form-grid"
-    >
-
-
-        <label>
-
-            Date
-
-            <input
-                type="date"
-                name="date"
-                value="{{ now_date }}"
-                required
-            >
-
-        </label>
-
-
-
-        <label>
-
-            Time
-
-            <input
-                type="time"
-                name="time"
-                value="{{ now_time }}"
-            >
-
-        </label>
-
-
-
-        <label>
-
-            Expense Type
-
-            <select
-                name="category"
-                required
-            >
-
-                {% for category in categories %}
-
-                    <option value="{{ category }}">
-                        {{ category }}
-                    </option>
-
-                {% endfor %}
-
-            </select>
-
-        </label>
-
-
-
-        <label>
-
-            Amount (₹)
-
-            <input
-                type="number"
-                name="amount"
-                min="0.01"
-                step="0.01"
-                placeholder="3500"
-                required
-            >
-
-        </label>
-
-
-
-        <label>
-
-            Paid By
-
-            <select
-                name="paid_by"
-                required
-            >
-
-                {% for member in members %}
-
-                    <option value="{{ member }}">
-                        {{ member }}
-                    </option>
-
-                {% endfor %}
-
-            </select>
-
-        </label>
-
-
-
-        <label>
-
-            Location
-
-            <input
-                type="text"
-                name="location"
-                placeholder="Petrol pump / Restaurant / Toll"
-            >
-
-        </label>
-
-
-
-        <label class="full">
-
-            Description
-
-            <input
-                type="text"
-                name="description"
-                placeholder="Example: Dinner for 7 members"
-            >
-
-        </label>
-
-
-
-        <label class="full">
-
-            Receipt / Bill / UPI Reference
-
-            <input
-                type="text"
-                name="receipt"
-                placeholder="Optional"
-            >
-
-        </label>
-
-
-
-        <!-- =================================================
-             SHARED MEMBERS
-        ================================================== -->
-
-        <div class="shared-box full">
-
-
-            <div class="shared-header">
-
-                <div>
-
-                    <strong>
-                        Who shared this expense?
-                    </strong>
-
-                    <small>
-                        Uncheck members who did not participate
-                    </small>
-
+                <div
+                    id="liveClock"
+                    class="live-clock"
+                >
+                    --:--:--
                 </div>
 
+                <div
+                    id="liveDate"
+                    class="live-date"
+                >
+                    --
+                </div>
 
-                <label class="select-all">
+            </div>
 
-                    <input
-                        type="checkbox"
-                        id="selectAll"
-                        checked
+        </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         FLASH MESSAGES
+         ===================================================== -->
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            <div class="flash-container">
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="flash flash-{{ category }}"
                     >
-
-                    Select All
-
-                </label>
-
-
-            </div>
-
-
-
-            <div class="member-check-grid">
-
-
-                {% for member in members %}
-
-                    <label class="member-check">
-
-                        <input
-                            type="checkbox"
-                            name="shared_by"
-                            value="{{ member }}"
-                            class="member-checkbox"
-                            checked
-                        >
-
-                        <span>
-                            {{ member }}
-                        </span>
-
-                    </label>
+                        {{ message }}
+                    </div>
 
                 {% endfor %}
-
-
-            </div>
-
-
-            <div
-                class="selection-info"
-                id="selectionInfo"
-            >
-                8 members selected
-            </div>
-
-
-        </div>
-
-
-
-        <button
-            type="submit"
-            class="btn full"
-        >
-
-            ＋ Add Expense & Push to GitHub
-
-        </button>
-
-
-    </form>
-
-
-</section>
-
-
-
-<!-- =====================================================
-     SETTLEMENT
-===================================================== -->
-
-<section class="card">
-
-
-    <div class="card-title">
-
-        <div>
-
-            <h2>
-                Settlement
-            </h2>
-
-            <span>
-                Based on actual expenses shared by each member
-            </span>
-
-        </div>
-
-    </div>
-
-
-
-    <div class="member-summary">
-
-
-        {% for member in member_rows %}
-
-            <div class="member-summary-row">
-
-
-                <div>
-
-                    <strong>
-                        {{ member.name }}
-                    </strong>
-
-                </div>
-
-
-                <div>
-
-                    <span>
-                        Paid
-                    </span>
-
-                    <strong>
-                        ₹{{ "%.2f"|format(member.paid) }}
-                    </strong>
-
-                </div>
-
-
-                <div>
-
-                    <span>
-                        Shared
-                    </span>
-
-                    <strong>
-                        ₹{{ "%.2f"|format(member.shared) }}
-                    </strong>
-
-                </div>
-
-
-                <div>
-
-                    <span>
-                        Balance
-                    </span>
-
-                    {% if member.balance > 0.009 %}
-
-                        <strong class="positive">
-                            Receives ₹{{ "%.2f"|format(member.balance) }}
-                        </strong>
-
-                    {% elif member.balance < -0.009 %}
-
-                        <strong class="negative">
-                            Pays ₹{{ "%.2f"|format(member.balance|abs) }}
-                        </strong>
-
-                    {% else %}
-
-                        <strong>
-                            Settled
-                        </strong>
-
-                    {% endif %}
-
-                </div>
-
-
-            </div>
-
-        {% endfor %}
-
-
-    </div>
-
-
-
-    <div class="settlement-box">
-
-
-        <h3>
-            Suggested Payments
-        </h3>
-
-
-        {% if settlements %}
-
-
-            {% for settlement in settlements %}
-
-                <div class="settlement-row">
-
-                    <div>
-
-                        <strong>
-                            {{ settlement.from }}
-                        </strong>
-
-                        <span>
-                            pays
-                        </span>
-
-                        <strong>
-                            {{ settlement.to }}
-                        </strong>
-
-                    </div>
-
-
-                    <div class="settlement-amount">
-
-                        ₹{{ "%.2f"|format(
-                            settlement.amount
-                        ) }}
-
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
-
-        {% else %}
-
-            <div class="settled">
-
-                ✓ Everyone is settled.
 
             </div>
 
         {% endif %}
 
-
-    </div>
-
-
-</section>
+    {% endwith %}
 
 
+    <!-- =====================================================
+         SUMMARY CARDS
+         ===================================================== -->
 
-<!-- =====================================================
-     EXPENSE BREAKDOWN
-===================================================== -->
+    <section class="summary-grid">
 
-<section class="grid-2">
+        <div class="summary-card">
 
+            <div class="summary-label">
+                CONTRIBUTION COLLECTED
+            </div>
 
-    <div class="card">
+            <div class="summary-value">
+                ₹{{ "%.2f"|format(
+                    financials.contribution_collected
+                ) }}
+            </div>
 
-
-        <div class="card-title">
-
-            <div>
-
-                <h2>
-                    Expense Breakdown
-                </h2>
-
-                <span>
-                    Category-wise totals
-                </span>
-
+            <div class="summary-note">
+                Collected by {{ settings.contribution_by }}
             </div>
 
         </div>
 
 
-        <div class="chart-container">
+        <div class="summary-card">
 
-            <canvas id="categoryChart"></canvas>
+            <div class="summary-label">
+                TOTAL TRIP EXPENSE
+            </div>
 
-        </div>
+            <div class="summary-value">
+                ₹{{ "%.2f"|format(
+                    financials.total
+                ) }}
+            </div>
 
-
-    </div>
-
-
-
-    <div class="card">
-
-
-        <div class="card-title">
-
-            <div>
-
-                <h2>
-                    Category Totals
-                </h2>
-
+            <div class="summary-note">
+                From all recorded expenses
             </div>
 
         </div>
 
 
-        <div class="category-list">
+        <div class="summary-card">
+
+            <div class="summary-label">
+                REMAINING CONTRIBUTION
+            </div>
+
+            <div class="summary-value">
+                ₹{{ "%.2f"|format(
+                    financials.remaining
+                ) }}
+            </div>
+
+            <div class="summary-note">
+                Contribution minus expenses
+            </div>
+
+        </div>
 
 
-            {% for category, amount
-                in category_totals.items() %}
+        <div class="summary-card">
 
-                <div>
+            <div class="summary-label">
+                VISIT DATE
+            </div>
 
-                    <span>
-                        {{ category }}
-                    </span>
+            <div class="summary-value summary-date">
+                {{ settings.trip_date }}
+            </div>
 
-                    <strong>
-                        ₹{{ "%.2f"|format(amount) }}
-                    </strong>
+            <div class="summary-note">
+                Trip date
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MAIN GRID
+         ===================================================== -->
+
+    <div class="main-grid">
+
+        <main>
+
+
+            <!-- =================================================
+                 ADD EXPENSE
+                 ================================================= -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <div class="panel-kicker">
+                            NEW ENTRY
+                        </div>
+
+                        <h2>
+                            Add Expense
+                        </h2>
+                    </div>
 
                 </div>
 
-            {% endfor %}
 
+                <form
+                    method="POST"
+                    action="{{ url_for('add_expense') }}"
+                    class="expense-form"
+                >
 
-        </div>
+                    <!-- DATE -->
 
+                    <div class="form-group">
 
-    </div>
-
-
-</section>
-
-
-
-<!-- =====================================================
-     MEMBERS
-===================================================== -->
-
-<section class="card">
-
-
-    <div class="card-title">
-
-        <div>
-
-            <h2>
-                Trip Members
-            </h2>
-
-            <span>
-                You can rename members at any time
-            </span>
-
-        </div>
-
-    </div>
-
-
-
-    <form
-        method="POST"
-        action="{{ url_for('update_members') }}"
-        class="members"
-    >
-
-
-        {% for i in range(1, 9) %}
-
-            <input
-                type="text"
-                name="member{{ i }}"
-                value="{{ members[i-1] }}"
-                placeholder="Member {{ i }}"
-                required
-            >
-
-        {% endfor %}
-
-
-        <button
-            type="submit"
-            class="btn"
-        >
-
-            Save Members & Push to GitHub
-
-        </button>
-
-
-    </form>
-
-
-</section>
-
-
-
-<!-- =====================================================
-     EXPENSE HISTORY
-===================================================== -->
-
-<section class="card">
-
-
-    <div class="card-title">
-
-        <div>
-
-            <h2>
-                Expense History
-            </h2>
-
-            <span>
-                Every expense shows who shared it
-            </span>
-
-        </div>
-
-    </div>
-
-
-
-    {% if expenses %}
-
-
-        <div class="table-wrapper">
-
-            <table>
-
-
-                <thead>
-
-                    <tr>
-
-                        <th>
+                        <label for="date">
                             Date
-                        </th>
+                        </label>
 
-                        <th>
-                            Type
-                        </th>
+                        <input
+                            id="date"
+                            type="date"
+                            name="date"
+                            value="{{ selected_date }}"
+                            required
+                        >
 
-                        <th>
-                            Amount
-                        </th>
-
-                        <th>
-                            Paid By
-                        </th>
-
-                        <th>
-                            Shared By
-                        </th>
-
-                        <th>
-                            Location
-                        </th>
-
-                        <th>
-                            Description
-                        </th>
-
-                        <th>
-                            Action
-                        </th>
-
-                    </tr>
-
-                </thead>
+                    </div>
 
 
-                <tbody>
+                    <!-- EASY 12-HOUR TIME -->
+
+                    <div class="form-group">
+
+                        <label>
+                            Time
+                        </label>
+
+                        <div class="time-select-group">
+
+                            <select
+                                name="hour"
+                                id="hour"
+                                required
+                            >
+
+                                {% for hour in range(1, 13) %}
+
+                                    <option
+                                        value="{{ hour }}"
+                                        {% if current_hour|int == hour %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ hour }}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
 
 
-                {% for expense in expenses %}
-
-                    <tr>
-
-
-                        <td>
-
-                            <strong>
-                                {{ expense.date }}
-                            </strong>
-
-                            <small>
-                                {{ expense.time }}
-                            </small>
-
-                        </td>
-
-
-
-                        <td>
-
-                            <span class="tag">
-                                {{ expense.category }}
+                            <span class="time-colon">
+                                :
                             </span>
 
-                        </td>
+
+                            <select
+                                name="minute"
+                                id="minute"
+                                required
+                            >
+
+                                {% for minute in range(0, 60, 5) %}
+
+                                    <option
+                                        value="{{ "%02d"|format(minute) }}"
+                                        {% if current_minute|int == minute %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ "%02d"|format(minute) }}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
 
 
+                            <select
+                                name="ampm"
+                                id="ampm"
+                                required
+                            >
 
-                        <td>
+                                <option
+                                    value="AM"
+                                    {% if current_ampm == "AM" %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    AM
+                                </option>
 
-                            <strong>
-                                ₹{{ "%.2f"|format(
-                                    expense.amount
-                                ) }}
-                            </strong>
+                                <option
+                                    value="PM"
+                                    {% if current_ampm == "PM" %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    PM
+                                </option>
 
-                        </td>
+                            </select>
+
+                        </div>
+
+                        <small class="field-help">
+                            Select hour, minutes and AM/PM.
+                        </small>
+
+                    </div>
 
 
+                    <!-- CATEGORY -->
 
-                        <td>
+                    <div class="form-group">
 
-                            {{ expense.paid_by }}
+                        <label for="category">
+                            Category
+                        </label>
 
-                        </td>
+                        <select
+                            id="category"
+                            name="category"
+                            required
+                        >
+
+                            {% for category in categories %}
+
+                                <option
+                                    value="{{ category }}"
+                                >
+                                    {{ category }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
 
 
+                    <!-- AMOUNT -->
 
-                        <td>
+                    <div class="form-group">
 
-                            <div class="shared-members">
+                        <label for="amount">
+                            Amount
+                        </label>
 
-                                <span class="shared-count">
-                                    {{ expense.shared_count }}
-                                    members
+                        <div class="input-with-symbol">
+
+                            <span>
+                                ₹
+                            </span>
+
+                            <input
+                                id="amount"
+                                type="number"
+                                name="amount"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0.00"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PAID BY -->
+
+                    <div class="form-group">
+
+                        <label for="paid_by">
+                            Paid By
+                        </label>
+
+                        <select
+                            id="paid_by"
+                            name="paid_by"
+                            required
+                        >
+
+                            {% for member in members %}
+
+                                <option
+                                    value="{{ member }}"
+                                    {% if member == "Hitesh" %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ member }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- VEHICLE -->
+
+                    <div
+                        class="form-group"
+                        id="vehicleGroup"
+                    >
+
+                        <label for="vehicle">
+                            Vehicle
+                        </label>
+
+                        <select
+                            id="vehicle"
+                            name="vehicle"
+                        >
+
+                            <option value="">
+                                No Vehicle
+                            </option>
+
+                            {% for vehicle in vehicles %}
+
+                                <option
+                                    value="{{ vehicle }}"
+                                >
+                                    {{ vehicle }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <small class="field-help">
+                            Mainly used for Fuel and Toll.
+                        </small>
+
+                    </div>
+
+
+                    <!-- LOCATION -->
+
+                    <div class="form-group">
+
+                        <label for="location">
+                            Location
+                        </label>
+
+                        <input
+                            id="location"
+                            type="text"
+                            name="location"
+                            placeholder="e.g. Pune, Hotel, Highway"
+                        >
+
+                    </div>
+
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="form-group full-width">
+
+                        <label for="description">
+                            Description
+                        </label>
+
+                        <input
+                            id="description"
+                            type="text"
+                            name="description"
+                            placeholder="Optional details"
+                        >
+
+                    </div>
+
+
+                    <!-- SHARED BY -->
+
+                    <div class="form-group full-width">
+
+                        <div class="label-row">
+
+                            <label>
+                                Expense Shared By
+                            </label>
+
+                            <button
+                                type="button"
+                                class="mini-button"
+                                onclick="selectAllMembers()"
+                            >
+                                Select All
+                            </button>
+
+                            <button
+                                type="button"
+                                class="mini-button"
+                                onclick="clearAllMembers()"
+                            >
+                                Clear
+                            </button>
+
+                        </div>
+
+
+                        <div class="member-check-grid">
+
+                            {% for member in members %}
+
+                                <label class="member-check">
+
+                                    <input
+                                        type="checkbox"
+                                        name="shared_by"
+                                        value="{{ member }}"
+                                        checked
+                                    >
+
+                                    <span>
+                                        {{ member }}
+                                    </span>
+
+                                </label>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SUBMIT -->
+
+                    <div class="form-actions full-width">
+
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
+                            + Add Expense
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </section>
+
+
+            <!-- =================================================
+                 DAILY SUMMARY
+                 ================================================= -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <div class="panel-kicker">
+                            DAILY VIEW
+                        </div>
+
+                        <h2>
+                            Day Summary
+                        </h2>
+                    </div>
+
+                    <form
+                        method="GET"
+                        action="{{ url_for('index') }}"
+                        class="date-filter"
+                    >
+
+                        <input
+                            type="date"
+                            name="date"
+                            value="{{ selected_date }}"
+                            onchange="this.form.submit()"
+                        >
+
+                    </form>
+
+                </div>
+
+
+                <div class="daily-total-card">
+
+                    <div>
+                        <span>
+                            Total for {{ selected_date }}
+                        </span>
+
+                        <strong>
+                            ₹{{ "%.2f"|format(
+                                daily_total
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div class="daily-count">
+                        {{ daily_expenses|length }}
+                        expense(s)
+                    </div>
+
+                </div>
+
+
+                {% if daily_expenses %}
+
+                    <div class="table-wrap">
+
+                        <table>
+
+                            <thead>
+
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Paid By</th>
+                                    <th>Vehicle</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                {% for expense in daily_expenses %}
+
+                                    <tr>
+
+                                        <td>
+                                            {{ expense.get(
+                                                "display_time",
+                                                expense.get("time", "")
+                                            ) }}
+                                        </td>
+
+                                        <td>
+                                            <span class="category-pill">
+                                                {{ expense.category }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+
+                                            <div class="expense-main">
+                                                {{ expense.description or "-" }}
+                                            </div>
+
+                                            {% if expense.location %}
+
+                                                <div class="expense-sub">
+                                                    {{ expense.location }}
+                                                </div>
+
+                                            {% endif %}
+
+                                        </td>
+
+                                        <td>
+                                            {{ expense.paid_by }}
+                                        </td>
+
+                                        <td>
+                                            {{ expense.vehicle or "-" }}
+                                        </td>
+
+                                        <td class="amount-cell">
+                                            ₹{{ "%.2f"|format(
+                                                expense.amount
+                                            ) }}
+                                        </td>
+
+                                        <td>
+
+                                            <form
+                                                method="POST"
+                                                action="{{
+                                                    url_for(
+                                                        'delete_expense',
+                                                        expense_id=expense.id
+                                                    )
+                                                }}"
+                                                onsubmit="return confirm('Delete this expense?');"
+                                            >
+
+                                                <button
+                                                    type="submit"
+                                                    class="delete-button"
+                                                    title="Delete"
+                                                >
+                                                    ×
+                                                </button>
+
+                                            </form>
+
+                                        </td>
+
+                                    </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                {% else %}
+
+                    <div class="empty-state">
+                        No expenses recorded for this date.
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- =================================================
+                 EXPENSE HISTORY
+                 ================================================= -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <div class="panel-kicker">
+                            HISTORY
+                        </div>
+
+                        <h2>
+                            All Expenses
+                        </h2>
+                    </div>
+
+                </div>
+
+
+                {% if expenses %}
+
+                    <div class="table-wrap">
+
+                        <table>
+
+                            <thead>
+
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Category</th>
+                                    <th>Paid By</th>
+                                    <th>Shared By</th>
+                                    <th>Amount</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                {% for expense in expenses %}
+
+                                    <tr>
+
+                                        <td>
+                                            {{ expense.date }}
+                                        </td>
+
+                                        <td>
+                                            {{ expense.get(
+                                                "display_time",
+                                                expense.get("time", "")
+                                            ) }}
+                                        </td>
+
+                                        <td>
+                                            <span class="category-pill">
+                                                {{ expense.category }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {{ expense.paid_by }}
+                                        </td>
+
+                                        <td>
+
+                                            <div class="shared-list">
+
+                                                {% for member in expense.get(
+                                                    "shared_by",
+                                                    members
+                                                ) %}
+
+                                                    <span>
+                                                        {{ member }}
+                                                    </span>
+
+                                                {% endfor %}
+
+                                            </div>
+
+                                        </td>
+
+                                        <td class="amount-cell">
+                                            ₹{{ "%.2f"|format(
+                                                expense.amount
+                                            ) }}
+                                        </td>
+
+                                    </tr>
+
+                                {% endfor %}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                {% else %}
+
+                    <div class="empty-state">
+                        No expenses recorded yet.
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- =================================================
+                 FINAL SETTLEMENT
+                 ================================================= -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <div class="panel-kicker">
+                            FINAL SETTLEMENT
+                        </div>
+
+                        <h2>
+                            Member Settlement
+                        </h2>
+
+                        <p class="panel-description">
+                            The final amount can be customized
+                            because Vikramsingh and Navendu have
+                            their own vehicles.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="table-wrap">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Member</th>
+                                <th>Paid</th>
+                                <th>Normal Share</th>
+                                <th>Final Share</th>
+                                <th>Balance</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for member in members %}
+
+                                {% set balance =
+                                    financials.balances[member]
+                                %}
+
+                                <tr>
+
+                                    <td class="member-name">
+                                        {{ member }}
+                                    </td>
+
+                                    <td>
+                                        ₹{{ "%.2f"|format(
+                                            financials.member_paid[member]
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        ₹{{ "%.2f"|format(
+                                            financials.member_shared[member]
+                                        ) }}
+                                    </td>
+
+                                    <td>
+                                        ₹{{ "%.2f"|format(
+                                            financials.final_share[member]
+                                        ) }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if balance > 0 %}
+
+                                            <span class="balance-positive">
+                                                Gets ₹{{ "%.2f"|format(
+                                                    balance
+                                                ) }}
+                                            </span>
+
+                                        {% elif balance < 0 %}
+
+                                            <span class="balance-negative">
+                                                Pays ₹{{ "%.2f"|format(
+                                                    -balance
+                                                ) }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="balance-zero">
+                                                Settled
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                {% if settlements %}
+
+                    <div class="settlement-list">
+
+                        <h3>
+                            Suggested Payments
+                        </h3>
+
+                        {% for settlement in settlements %}
+
+                            <div class="settlement-row">
+
+                                <span>
+                                    <strong>
+                                        {{ settlement.from }}
+                                    </strong>
+
+                                    →
+                                    <strong>
+                                        {{ settlement.to }}
+                                    </strong>
                                 </span>
 
-                                <small>
-                                    {{
-                                        expense.shared_by_display
-                                        | join(", ")
-                                    }}
-                                </small>
+                                <span class="settlement-amount">
+                                    ₹{{ "%.2f"|format(
+                                        settlement.amount
+                                    ) }}
+                                </span>
 
                             </div>
 
-                        </td>
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
 
 
+                <!-- CUSTOM SPLIT -->
 
-                        <td>
+                <div class="custom-split-box">
 
-                            {{ expense.location or "—" }}
+                    <div class="custom-split-header">
 
-                        </td>
+                        <div>
 
+                            <h3>
+                                Custom Final Split
+                            </h3>
 
+                            <p>
+                                Enter the final share for each
+                                member. Total must equal the
+                                complete trip expense.
+                            </p>
 
-                        <td>
+                        </div>
 
-                            {{ expense.description or "—" }}
-
-                        </td>
-
-
-
-                        <td>
+                        {% if settings.get("custom_final_shares") %}
 
                             <form
                                 method="POST"
                                 action="{{
                                     url_for(
-                                        'delete_expense',
-                                        expense_id=expense.id
+                                        'clear_custom_split'
                                     )
                                 }}"
-                                onsubmit="return confirm(
-                                    'Delete this expense?'
-                                )"
                             >
 
                                 <button
                                     type="submit"
-                                    class="delete"
+                                    class="secondary-button"
                                 >
-                                    Delete
+                                    Clear Custom Split
                                 </button>
 
                             </form>
 
-                        </td>
+                        {% endif %}
+
+                    </div>
 
 
-                    </tr>
+                    <form
+                        method="POST"
+                        action="{{
+                            url_for('custom_split')
+                        }}"
+                    >
+
+                        <div class="custom-share-grid">
+
+                            {% for member in members %}
+
+                                <div class="form-group">
+
+                                    <label>
+                                        {{ member }}
+                                    </label>
+
+                                    <div class="input-with-symbol">
+
+                                        <span>
+                                            ₹
+                                        </span>
+
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            name="share_{{ member }}"
+                                            value="{{
+                                                '%.2f'|format(
+                                                    financials.final_share[member]
+                                                )
+                                            }}"
+                                            required
+                                        >
+
+                                    </div>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+
+                        <div class="custom-split-footer">
+
+                            <div>
+                                Total required:
+                                <strong>
+                                    ₹{{ "%.2f"|format(
+                                        financials.total
+                                    ) }}
+                                </strong>
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="primary-button"
+                            >
+                                Save Final Split
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- =====================================================
+             RIGHT SIDEBAR
+             ===================================================== -->
+
+        <aside>
+
+
+            <!-- CALENDAR -->
+
+            <section class="panel compact-panel">
+
+                <div class="panel-kicker">
+                    DATE
+                </div>
+
+                <h2>
+                    Trip Date
+                </h2>
+
+                <form
+                    method="POST"
+                    action="{{
+                        url_for('update_settings')
+                    }}"
+                >
+
+                    <div class="form-group">
+
+                        <label>
+                            Date of Visit
+                        </label>
+
+                        <input
+                            type="date"
+                            name="trip_date"
+                            value="{{ settings.trip_date }}"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Contribution Collected
+                        </label>
+
+                        <div class="input-with-symbol">
+
+                            <span>
+                                ₹
+                            </span>
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                name="contribution_collected"
+                                value="{{
+                                    '%.2f'|format(
+                                        settings.contribution_collected
+                                    )
+                                }}"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Contribution Collected By
+                        </label>
+
+                        <select
+                            name="contribution_by"
+                        >
+
+                            {% for member in members %}
+
+                                <option
+                                    value="{{ member }}"
+                                    {% if settings.contribution_by == member %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ member }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button full-button"
+                    >
+                        Save Settings
+                    </button>
+
+                </form>
+
+            </section>
+
+
+            <!-- VEHICLES -->
+
+            <section class="panel compact-panel">
+
+                <div class="panel-kicker">
+                    VEHICLES
+                </div>
+
+                <h2>
+                    Vehicle Expenses
+                </h2>
+
+
+                {% for vehicle in vehicles %}
+
+                    <div class="vehicle-card">
+
+                        <div>
+
+                            <strong>
+                                {{ vehicle }}
+                            </strong>
+
+                            <small>
+                                Fuel + Toll
+                            </small>
+
+                        </div>
+
+                        <strong class="vehicle-amount">
+                            ₹{{ "%.2f"|format(
+                                financials.vehicle_totals[vehicle]
+                            ) }}
+                        </strong>
+
+                    </div>
 
                 {% endfor %}
 
-
-                </tbody>
-
-
-            </table>
-
-        </div>
+            </section>
 
 
-    {% else %}
+            <!-- CATEGORY TOTALS -->
 
-        <div class="empty">
+            <section class="panel compact-panel">
 
-            No expenses recorded yet.
+                <div class="panel-kicker">
+                    BREAKDOWN
+                </div>
 
-        </div>
-
-    {% endif %}
-
-
-</section>
+                <h2>
+                    Categories
+                </h2>
 
 
-</main>
+                <div class="category-list">
 
+                    {% for category in categories %}
+
+                        <div class="category-total-row">
+
+                            <span>
+                                {{ category }}
+                            </span>
+
+                            <strong>
+                                ₹{{ "%.2f"|format(
+                                    financials.category_totals[category]
+                                ) }}
+                            </strong>
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </section>
+
+
+            <!-- MEMBERS -->
+
+            <section class="panel compact-panel">
+
+                <div class="panel-kicker">
+                    GROUP
+                </div>
+
+                <h2>
+                    8 Members
+                </h2>
+
+
+                <form
+                    method="POST"
+                    action="{{
+                        url_for('update_members')
+                    }}"
+                >
+
+                    {% for member in members %}
+
+                        <div class="member-edit-row">
+
+                            <span>
+                                {{ loop.index }}
+                            </span>
+
+                            <input
+                                type="text"
+                                name="member_{{ loop.index0 }}"
+                                value="{{ member }}"
+                                required
+                            >
+
+                        </div>
+
+                    {% endfor %}
+
+
+                    <button
+                        type="submit"
+                        class="secondary-button full-button"
+                    >
+                        Save Members
+                    </button>
+
+                </form>
+
+            </section>
+
+
+        </aside>
+
+    </div>
+
+</div>
 
 
 <script>
 
+    // =========================================================
+    // LIVE CLOCK
+    // =========================================================
 
-// ==========================================================
-// MEMBER SELECTION
-// ==========================================================
+    function updateClock() {
 
-const selectAll =
-    document.getElementById(
-        "selectAll"
-    );
+        const now = new Date();
 
-
-const memberCheckboxes =
-    Array.from(
-        document.querySelectorAll(
-            ".member-checkbox"
-        )
-    );
-
-
-const selectionInfo =
-    document.getElementById(
-        "selectionInfo"
-    );
-
-
-function updateSelectionInfo() {
-
-    const selected =
-        memberCheckboxes.filter(
-            checkbox => checkbox.checked
-        ).length;
-
-
-    selectionInfo.textContent =
-        `${selected} member${selected === 1 ? "" : "s"} selected`;
-
-
-    selectAll.checked =
-        selected === memberCheckboxes.length;
-
-
-    selectAll.indeterminate =
-        selected > 0 &&
-        selected < memberCheckboxes.length;
-}
-
-
-selectAll.addEventListener(
-    "change",
-    function () {
-
-        memberCheckboxes.forEach(
-            checkbox => {
-                checkbox.checked =
-                    selectAll.checked;
+        const time = now.toLocaleTimeString(
+            "en-IN",
+            {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
             }
         );
 
-        updateSelectionInfo();
+        const date = now.toLocaleDateString(
+            "en-IN",
+            {
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            }
+        );
 
+        const clockElement =
+            document.getElementById("liveClock");
+
+        const dateElement =
+            document.getElementById("liveDate");
+
+        if (clockElement) {
+            clockElement.textContent = time;
+        }
+
+        if (dateElement) {
+            dateElement.textContent = date;
+        }
     }
-);
 
 
-memberCheckboxes.forEach(
-    checkbox => {
+    updateClock();
 
-        checkbox.addEventListener(
+    setInterval(
+        updateClock,
+        1000
+    );
+
+
+    // =========================================================
+    // MEMBER SELECTION
+    // =========================================================
+
+    function selectAllMembers() {
+
+        document
+            .querySelectorAll(
+                'input[name="shared_by"]'
+            )
+            .forEach(
+                checkbox => {
+                    checkbox.checked = true;
+                }
+            );
+    }
+
+
+    function clearAllMembers() {
+
+        document
+            .querySelectorAll(
+                'input[name="shared_by"]'
+            )
+            .forEach(
+                checkbox => {
+                    checkbox.checked = false;
+                }
+            );
+    }
+
+
+    // =========================================================
+    // VEHICLE VISIBILITY
+    // =========================================================
+
+    function updateVehicleVisibility() {
+
+        const category =
+            document.getElementById("category");
+
+        const vehicleGroup =
+            document.getElementById("vehicleGroup");
+
+        if (!category || !vehicleGroup) {
+            return;
+        }
+
+        if (
+            category.value === "Fuel" ||
+            category.value === "Toll"
+        ) {
+            vehicleGroup.style.display = "";
+        } else {
+            vehicleGroup.style.display = "none";
+
+            const vehicle =
+                document.getElementById("vehicle");
+
+            if (vehicle) {
+                vehicle.value = "";
+            }
+        }
+    }
+
+
+    const categoryElement =
+        document.getElementById("category");
+
+    if (categoryElement) {
+
+        categoryElement.addEventListener(
             "change",
-            updateSelectionInfo
+            updateVehicleVisibility
         );
 
+        updateVehicleVisibility();
     }
-);
 
 
-updateSelectionInfo();
+    // =========================================================
+    // TIME DROPDOWN
+    // =========================================================
+
+    const hourSelect =
+        document.getElementById("hour");
+
+    const minuteSelect =
+        document.getElementById("minute");
+
+    const ampmSelect =
+        document.getElementById("ampm");
 
 
-// ==========================================================
-// CHART
-// ==========================================================
+    function setCurrentTimeDropdowns() {
 
-const categoryData =
-    {{ category_totals | tojson }};
+        if (
+            !hourSelect ||
+            !minuteSelect ||
+            !ampmSelect
+        ) {
+            return;
+        }
 
+        const now = new Date();
 
-const chartElement =
-    document.getElementById(
-        "categoryChart"
-    );
+        let hour = now.getHours();
 
+        const ampm =
+            hour >= 12
+                ? "PM"
+                : "AM";
 
-new Chart(
-    chartElement,
-    {
+        hour = hour % 12;
 
-        type: "doughnut",
+        if (hour === 0) {
+            hour = 12;
+        }
 
-        data: {
+        /*
+         * Use the nearest 5-minute interval.
+         */
+        let minute =
+            Math.round(
+                now.getMinutes() / 5
+            ) * 5;
 
-            labels:
-                Object.keys(categoryData),
+        if (minute === 60) {
+            minute = 0;
+            hour++;
 
-            datasets: [
-
-                {
-
-                    data:
-                        Object.values(categoryData),
-
-                    borderWidth: 0
-
-                }
-
-            ]
-
-        },
-
-        options: {
-
-            responsive: true,
-
-            maintainAspectRatio: false,
-
-            plugins: {
-
-                legend: {
-
-                    position: "bottom"
-
-                }
-
+            if (hour === 13) {
+                hour = 1;
             }
+        }
 
+        hourSelect.value =
+            String(hour);
+
+        minuteSelect.value =
+            String(
+                minute
+            ).padStart(
+                2,
+                "0"
+            );
+
+        ampmSelect.value =
+            ampm;
+    }
+
+
+    /*
+     * Keep the server-selected current time
+     * when the page initially loads.
+     *
+     * The user can simply change the dropdowns
+     * when required.
+     */
+    if (
+        hourSelect &&
+        minuteSelect &&
+        ampmSelect
+    ) {
+
+        if (
+            !hourSelect.value ||
+            !minuteSelect.value ||
+            !ampmSelect.value
+        ) {
+            setCurrentTimeDropdowns();
         }
 
     }
-);
 
 </script>
 
-
 </body>
-
 </html>
