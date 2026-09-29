@@ -20,27 +20,5 @@
         "description": "",
         "receipt": "",
         "created_at": "2026-09-29T18:18:37"
-    },
-    {
-        "id": "84c0eb1543e24761adde34409e9eb97f",
-        "date": "2026-09-29",
-        "time": "18:18",
-        "category": "Petrol",
-        "amount": 8000.0,
-        "paid_by": "Palash",
-        "shared_by": [
-            "Palash",
-            "Santosh",
-            "Navendu",
-            "Vikramsinh",
-            "Milin",
-            "Umesh",
-            "Hitesh",
-            "Rahul"
-        ],
-        "location": "",
-        "description": "",
-        "receipt": "",
-        "created_at": "2026-09-29T18:19:03"
     }
 ]
