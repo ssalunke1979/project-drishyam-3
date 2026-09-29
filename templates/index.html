@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Trip Expense Tracker</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+
+<body>
+
+
+<header class="topbar">
+
+    <div class="header-inner">
+
+        <div>
+
+            <div class="eyebrow">
+                TRIP FINANCE
+            </div>
+
+            <h1>
+                Trip Expense Tracker
+            </h1>
+
+            <p>
+                8 Members · Per-Expense Splitting
+            </p>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<main class="container">
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+
+    {% if messages %}
+
+        <div class="messages">
+
+            {% for category, message in messages %}
+
+                <div class="message {{ category }}">
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+{% endwith %}
+
+
+
+<!-- =====================================================
+     TOP SUMMARY
+===================================================== -->
+
+<section class="stats">
+
+
+    <div class="stat primary">
+
+        <span>
+            Total Trip Expense
+        </span>
+
+        <strong>
+            ₹{{ "%.2f"|format(total) }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat">
+
+        <span>
+            Expense Entries
+        </span>
+
+        <strong>
+            {{ expenses|length }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat">
+
+        <span>
+            Members
+        </span>
+
+        <strong>
+            {{ members|length }}
+        </strong>
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     ADD EXPENSE
+===================================================== -->
+
+<section class="card">
+
+
+    <div class="card-title">
+
+        <div>
+
+            <h2>
+                Add Expense
+            </h2>
+
+            <span>
+                Select exactly who shared this particular expense
+            </span>
+
+        </div>
+
+    </div>
+
+
+
+    <form
+        method="POST"
+        action="{{ url_for('add_expense') }}"
+        class="form-grid"
+    >
+
+
+        <label>
+
+            Date
+
+            <input
+                type="date"
+                name="date"
+                value="{{ now_date }}"
+                required
+            >
+
+        </label>
+
+
+
+        <label>
+
+            Time
+
+            <input
+                type="time"
+                name="time"
+                value="{{ now_time }}"
+            >
+
+        </label>
+
+
+
+        <label>
+
+            Expense Type
+
+            <select
+                name="category"
+                required
+            >
+
+                {% for category in categories %}
+
+                    <option value="{{ category }}">
+                        {{ category }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </label>
+
+
+
+        <label>
+
+            Amount (₹)
+
+            <input
+                type="number"
+                name="amount"
+                min="0.01"
+                step="0.01"
+                placeholder="3500"
+                required
+            >
+
+        </label>
+
+
+
+        <label>
+
+            Paid By
+
+            <select
+                name="paid_by"
+                required
+            >
+
+                {% for member in members %}
+
+                    <option value="{{ member }}">
+                        {{ member }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </label>
+
+
+
+        <label>
+
+            Location
+
+            <input
+                type="text"
+                name="location"
+                placeholder="Petrol pump / Restaurant / Toll"
+            >
+
+        </label>
+
+
+
+        <label class="full">
+
+            Description
+
+            <input
+                type="text"
+                name="description"
+                placeholder="Example: Dinner for 7 members"
+            >
+
+        </label>
+
+
+
+        <label class="full">
+
+            Receipt / Bill / UPI Reference
+
+            <input
+                type="text"
+                name="receipt"
+                placeholder="Optional"
+            >
+
+        </label>
+
+
+
+        <!-- =================================================
+             SHARED MEMBERS
+        ================================================== -->
+
+        <div class="shared-box full">
+
+
+            <div class="shared-header">
+
+                <div>
+
+                    <strong>
+                        Who shared this expense?
+                    </strong>
+
+                    <small>
+                        Uncheck members who did not participate
+                    </small>
+
+                </div>
+
+
+                <label class="select-all">
+
+                    <input
+                        type="checkbox"
+                        id="selectAll"
+                        checked
+                    >
+
+                    Select All
+
+                </label>
+
+
+            </div>
+
+
+
+            <div class="member-check-grid">
+
+
+                {% for member in members %}
+
+                    <label class="member-check">
+
+                        <input
+                            type="checkbox"
+                            name="shared_by"
+                            value="{{ member }}"
+                            class="member-checkbox"
+                            checked
+                        >
+
+                        <span>
+                            {{ member }}
+                        </span>
+
+                    </label>
+
+                {% endfor %}
+
+
+            </div>
+
+
+            <div
+                class="selection-info"
+                id="selectionInfo"
+            >
+                8 members selected
+            </div>
+
+
+        </div>
+
+
+
+        <button
+            type="submit"
+            class="btn full"
+        >
+
+            ＋ Add Expense & Push to GitHub
+
+        </button>
+
+
+    </form>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     SETTLEMENT
+===================================================== -->
+
+<section class="card">
+
+
+    <div class="card-title">
+
+        <div>
+
+            <h2>
+                Settlement
+            </h2>
+
+            <span>
+                Based on actual expenses shared by each member
+            </span>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="member-summary">
+
+
+        {% for member in member_rows %}
+
+            <div class="member-summary-row">
+
+
+                <div>
+
+                    <strong>
+                        {{ member.name }}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span>
+                        Paid
+                    </span>
+
+                    <strong>
+                        ₹{{ "%.2f"|format(member.paid) }}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span>
+                        Shared
+                    </span>
+
+                    <strong>
+                        ₹{{ "%.2f"|format(member.shared) }}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span>
+                        Balance
+                    </span>
+
+                    {% if member.balance > 0.009 %}
+
+                        <strong class="positive">
+                            Receives ₹{{ "%.2f"|format(member.balance) }}
+                        </strong>
+
+                    {% elif member.balance < -0.009 %}
+
+                        <strong class="negative">
+                            Pays ₹{{ "%.2f"|format(member.balance|abs) }}
+                        </strong>
+
+                    {% else %}
+
+                        <strong>
+                            Settled
+                        </strong>
+
+                    {% endif %}
+
+                </div>
+
+
+            </div>
+
+        {% endfor %}
+
+
+    </div>
+
+
+
+    <div class="settlement-box">
+
+
+        <h3>
+            Suggested Payments
+        </h3>
+
+
+        {% if settlements %}
+
+
+            {% for settlement in settlements %}
+
+                <div class="settlement-row">
+
+                    <div>
+
+                        <strong>
+                            {{ settlement.from }}
+                        </strong>
+
+                        <span>
+                            pays
+                        </span>
+
+                        <strong>
+                            {{ settlement.to }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="settlement-amount">
+
+                        ₹{{ "%.2f"|format(
+                            settlement.amount
+                        ) }}
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+
+        {% else %}
+
+            <div class="settled">
+
+                ✓ Everyone is settled.
+
+            </div>
+
+        {% endif %}
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     EXPENSE BREAKDOWN
+===================================================== -->
+
+<section class="grid-2">
+
+
+    <div class="card">
+
+
+        <div class="card-title">
+
+            <div>
+
+                <h2>
+                    Expense Breakdown
+                </h2>
+
+                <span>
+                    Category-wise totals
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="chart-container">
+
+            <canvas id="categoryChart"></canvas>
+
+        </div>
+
+
+    </div>
+
+
+
+    <div class="card">
+
+
+        <div class="card-title">
+
+            <div>
+
+                <h2>
+                    Category Totals
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="category-list">
+
+
+            {% for category, amount
+                in category_totals.items() %}
+
+                <div>
+
+                    <span>
+                        {{ category }}
+                    </span>
+
+                    <strong>
+                        ₹{{ "%.2f"|format(amount) }}
+                    </strong>
+
+                </div>
+
+            {% endfor %}
+
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     MEMBERS
+===================================================== -->
+
+<section class="card">
+
+
+    <div class="card-title">
+
+        <div>
+
+            <h2>
+                Trip Members
+            </h2>
+
+            <span>
+                You can rename members at any time
+            </span>
+
+        </div>
+
+    </div>
+
+
+
+    <form
+        method="POST"
+        action="{{ url_for('update_members') }}"
+        class="members"
+    >
+
+
+        {% for i in range(1, 9) %}
+
+            <input
+                type="text"
+                name="member{{ i }}"
+                value="{{ members[i-1] }}"
+                placeholder="Member {{ i }}"
+                required
+            >
+
+        {% endfor %}
+
+
+        <button
+            type="submit"
+            class="btn"
+        >
+
+            Save Members & Push to GitHub
+
+        </button>
+
+
+    </form>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     EXPENSE HISTORY
+===================================================== -->
+
+<section class="card">
+
+
+    <div class="card-title">
+
+        <div>
+
+            <h2>
+                Expense History
+            </h2>
+
+            <span>
+                Every expense shows who shared it
+            </span>
+
+        </div>
+
+    </div>
+
+
+
+    {% if expenses %}
+
+
+        <div class="table-wrapper">
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Date
+                        </th>
+
+                        <th>
+                            Type
+                        </th>
+
+                        <th>
+                            Amount
+                        </th>
+
+                        <th>
+                            Paid By
+                        </th>
+
+                        <th>
+                            Shared By
+                        </th>
+
+                        <th>
+                            Location
+                        </th>
+
+                        <th>
+                            Description
+                        </th>
+
+                        <th>
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                {% for expense in expenses %}
+
+                    <tr>
+
+
+                        <td>
+
+                            <strong>
+                                {{ expense.date }}
+                            </strong>
+
+                            <small>
+                                {{ expense.time }}
+                            </small>
+
+                        </td>
+
+
+
+                        <td>
+
+                            <span class="tag">
+                                {{ expense.category }}
+                            </span>
+
+                        </td>
+
+
+
+                        <td>
+
+                            <strong>
+                                ₹{{ "%.2f"|format(
+                                    expense.amount
+                                ) }}
+                            </strong>
+
+                        </td>
+
+
+
+                        <td>
+
+                            {{ expense.paid_by }}
+
+                        </td>
+
+
+
+                        <td>
+
+                            <div class="shared-members">
+
+                                <span class="shared-count">
+                                    {{ expense.shared_count }}
+                                    members
+                                </span>
+
+                                <small>
+                                    {{
+                                        expense.shared_by_display
+                                        | join(", ")
+                                    }}
+                                </small>
+
+                            </div>
+
+                        </td>
+
+
+
+                        <td>
+
+                            {{ expense.location or "—" }}
+
+                        </td>
+
+
+
+                        <td>
+
+                            {{ expense.description or "—" }}
+
+                        </td>
+
+
+
+                        <td>
+
+                            <form
+                                method="POST"
+                                action="{{
+                                    url_for(
+                                        'delete_expense',
+                                        expense_id=expense.id
+                                    )
+                                }}"
+                                onsubmit="return confirm(
+                                    'Delete this expense?'
+                                )"
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="delete"
+                                >
+                                    Delete
+                                </button>
+
+                            </form>
+
+                        </td>
+
+
+                    </tr>
+
+                {% endfor %}
+
+
+                </tbody>
+
+
+            </table>
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty">
+
+            No expenses recorded yet.
+
+        </div>
+
+    {% endif %}
+
+
+</section>
+
+
+</main>
+
+
+
+<script>
+
+
+// ==========================================================
+// MEMBER SELECTION
+// ==========================================================
+
+const selectAll =
+    document.getElementById(
+        "selectAll"
+    );
+
+
+const memberCheckboxes =
+    Array.from(
+        document.querySelectorAll(
+            ".member-checkbox"
+        )
+    );
+
+
+const selectionInfo =
+    document.getElementById(
+        "selectionInfo"
+    );
+
+
+function updateSelectionInfo() {
+
+    const selected =
+        memberCheckboxes.filter(
+            checkbox => checkbox.checked
+        ).length;
+
+
+    selectionInfo.textContent =
+        `${selected} member${selected === 1 ? "" : "s"} selected`;
+
+
+    selectAll.checked =
+        selected === memberCheckboxes.length;
+
+
+    selectAll.indeterminate =
+        selected > 0 &&
+        selected < memberCheckboxes.length;
+}
+
+
+selectAll.addEventListener(
+    "change",
+    function () {
+
+        memberCheckboxes.forEach(
+            checkbox => {
+                checkbox.checked =
+                    selectAll.checked;
+            }
+        );
+
+        updateSelectionInfo();
+
+    }
+);
+
+
+memberCheckboxes.forEach(
+    checkbox => {
+
+        checkbox.addEventListener(
+            "change",
+            updateSelectionInfo
+        );
+
+    }
+);
+
+
+updateSelectionInfo();
+
+
+// ==========================================================
+// CHART
+// ==========================================================
+
+const categoryData =
+    {{ category_totals | tojson }};
+
+
+const chartElement =
+    document.getElementById(
+        "categoryChart"
+    );
+
+
+new Chart(
+    chartElement,
+    {
+
+        type: "doughnut",
+
+        data: {
+
+            labels:
+                Object.keys(categoryData),
+
+            datasets: [
+
+                {
+
+                    data:
+                        Object.values(categoryData),
+
+                    borderWidth: 0
+
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+
+                legend: {
+
+                    position: "bottom"
+
+                }
+
+            }
+
+        }
+
+    }
+);
+
+</script>
+
+
+</body>
+
+</html>
