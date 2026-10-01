@@ -1,0 +1,66 @@
+[
+  {
+    "username": "palash",
+    "password_hash": "scrypt:32768:8:1$ih4OgM3VXQ8D8mfs$d709f786d204cfb22116289b13296c87cf544fe43de60129f9fa6d8dadad9782353b763272f1fc502dc669616ec5f4ed7e236614e2d0f4b95bfb4013e60272c0",
+    "member": "Palash",
+    "access": "read",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "santosh",
+    "password_hash": "scrypt:32768:8:1$ZI2QO7R2RgslSemc$16ac396b33ba6f4942746378311f9afcf5b7e08f68d622b815035de03acabc33fd8aca0b903b3e77d7c1942938417ef11e11ae326080a13d2dae7afbf3c3492f",
+    "member": "Santosh",
+    "access": "write",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "navendu",
+    "password_hash": "scrypt:32768:8:1$9LbWT2AMMwS4j78g$e16ee31a80d6b643b9407caa03615d47a0ec6d3b76e219fba703f972113a4ce7b8d59037e7ffbd3038866e79f7c8defd7757bac76ba9ff7a8656113882d44b63",
+    "member": "Navendu",
+    "access": "read",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "vikramsinh",
+    "password_hash": "scrypt:32768:8:1$tqNmASefZAjzmPl9$4c1377ae81aeb71713a635cff4456e111c26954ea9f19dd60c8304414cd8d9d343216043eb3682bcea232749a1deeb5d81d68ca8c2a4565a091d5994052d1328",
+    "member": "Vikramsinh",
+    "access": "write",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "milin",
+    "password_hash": "scrypt:32768:8:1$NpjIUDSUJjUbID3F$ba3d1ae0e1fc37c2f196eee42b305365c2fa61b6b16d78d0eae93e0ee0dde3ab9b8fb19cd23e7430aefc16823e6996a84f9a9a03aff61eba7b41c914d3c7b080",
+    "member": "Milin",
+    "access": "read",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "umesh",
+    "password_hash": "scrypt:32768:8:1$7a7OfUmISRbX6DGU$a782dff0872aafbed68bbe77fe9ac0363e4fb8f70169df61104722b690f478709a9b9d87d7a75dbc377b7bc84f353085394d77af910e59fa017d578de5960e75",
+    "member": "Umesh",
+    "access": "write",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "hitesh",
+    "password_hash": "scrypt:32768:8:1$91A2A8NB6pMjIXbO$4361173714f1a85da820ab0683a98c901a931b4545c41e3e52e56859478e80cea730a9bdf3cf189a1413173b52bd3b68241866edb0e035e37b64fb1545c0d8ee",
+    "member": "Hitesh",
+    "access": "write",
+    "enabled": true,
+    "must_change_password": false
+  },
+  {
+    "username": "rahul",
+    "password_hash": "scrypt:32768:8:1$6LCB3M2IvRfZf3dR$1a1138a12e138d3fc80a2b7aafbd671813a5e165776e4ea0f473fe94e6134d351041564869f0d47e5fcf5337fe9e0ed177cf5f618119c3bef847ba86ce1b2df8",
+    "member": "Rahul",
+    "access": "read",
+    "enabled": true,
+    "must_change_password": false
+  }
+]

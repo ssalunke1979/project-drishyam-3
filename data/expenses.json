@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "8970901582b746ac8b0505f4e0793d8f",
+    "date": "2026-10-03",
+    "hour": "07",
+    "minute": "26",
+    "ampm": "PM",
+    "category": "Drinks",
+    "amount": 4400.0,
+    "paid_by": "Navendu",
+    "vehicle": "",
+    "location": "",
+    "description": "Wishkey bottle purchase",
+    "shared_by": [
+      "Palash",
+      "Santosh",
+      "Navendu",
+      "Milin",
+      "Umesh",
+      "Hitesh",
+      "Rahul"
+    ],
+    "created_by": "santosh",
+    "created_at": "2026-09-30T19:26:52.462275"
+  }
+]

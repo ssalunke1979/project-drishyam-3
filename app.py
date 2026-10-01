@@ -1,46 +1,98 @@
 import json
 import os
-import subprocess
 import uuid
-from collections import defaultdict
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
-from pathlib import Path
+from datetime import datetime, date
+from functools import wraps
 
-from dotenv import load_dotenv
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
-
-
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-
-EXPENSES_FILE = DATA_DIR / "expenses.json"
-MEMBERS_FILE = DATA_DIR / "members.json"
-SETTINGS_FILE = DATA_DIR / "settings.json"
-
-load_dotenv(BASE_DIR / ".env")
-
-app = Flask(__name__)
-app.secret_key = os.getenv(
-    "FLASK_SECRET_KEY",
-    "change-this-secret-key"
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 
-CATEGORIES = [
-    "Breakfast",
-    "Tea",
-    "Coffee",
-    "Lunch",
-    "Dinner",
-    "Fuel",
-    "Toll",
-    "Other",
-]
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash,
+)
 
-VEHICLES = [
-    "Vikramsingh Vehicle",
-    "Navendu Vehicle",
-]
+from config import (
+    HOST,
+    PORT,
+    DEBUG,
+    APP_HOSTNAME,
+    PUBLIC_URL,
+    SECRET_KEY,
+    DASHBOARD_USERNAME,
+    DASHBOARD_PASSWORD,
+    SESSION_COOKIE_SECURE,
+    SESSION_COOKIE_HTTPONLY,
+    SESSION_COOKIE_SAMESITE,
+)
+
+
+# =========================================================
+# APPLICATION
+# =========================================================
+
+app = Flask(__name__)
+
+app.secret_key = SECRET_KEY
+
+app.config["SESSION_COOKIE_SECURE"] = SESSION_COOKIE_SECURE
+app.config["SESSION_COOKIE_HTTPONLY"] = SESSION_COOKIE_HTTPONLY
+app.config["SESSION_COOKIE_SAMESITE"] = SESSION_COOKIE_SAMESITE
+
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+)
+
+
+# =========================================================
+# DIRECTORIES
+# =========================================================
+
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
+
+DATA_DIR = os.path.join(
+    BASE_DIR,
+    "data"
+)
+
+MEMBERS_FILE = os.path.join(
+    DATA_DIR,
+    "members.json"
+)
+
+SETTINGS_FILE = os.path.join(
+    DATA_DIR,
+    "settings.json"
+)
+
+EXPENSES_FILE = os.path.join(
+    DATA_DIR,
+    "expenses.json"
+)
+
+USERS_FILE = os.path.join(
+    DATA_DIR,
+    "users.json"
+)
+
+
+# =========================================================
+# DEFAULT DATA
+# =========================================================
 
 DEFAULT_MEMBERS = [
     "Hitesh",
@@ -54,63 +106,128 @@ DEFAULT_MEMBERS = [
 ]
 
 
-# ============================================================
-# FILE HELPERS
-# ============================================================
+CATEGORIES = [
+    "Drinks",
+    "Food",
+    "Fuel",
+    "Toll",
+    "Hotel",
+    "Travel",
+    "Tickets",
+    "Parking",
+    "Shopping",
+    "Other",
+]
 
-def ensure_data_files():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not EXPENSES_FILE.exists():
-        save_json(EXPENSES_FILE, [])
+VEHICLES = [
+    "Vikramsingh",
+    "Navendu",
+]
 
-    if not MEMBERS_FILE.exists():
-        save_json(MEMBERS_FILE, DEFAULT_MEMBERS)
 
-    if not SETTINGS_FILE.exists():
-        save_json(
-            SETTINGS_FILE,
-            {
-                "trip_date": datetime.now().strftime("%Y-%m-%d"),
-                "contribution_collected": 0,
-                "contribution_by": "Hitesh",
-            },
+DEFAULT_SETTINGS = {
+    "trip_date": date.today().isoformat(),
+    "contribution_collected": 0.0,
+    "contribution_by": "Hitesh",
+    "member_contributions": {},
+    "custom_final_shares": {},
+}
+
+
+# =========================================================
+# JSON HELPERS
+# =========================================================
+
+def save_json(path, data):
+    os.makedirs(
+        os.path.dirname(path),
+        exist_ok=True,
+    )
+
+    temporary_file = path + ".tmp"
+
+    with open(
+        temporary_file,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            data,
+            file,
+            indent=2,
+            ensure_ascii=False,
         )
+
+    os.replace(
+        temporary_file,
+        path,
+    )
 
 
 def load_json(path, default):
     try:
-        with open(path, "r", encoding="utf-8") as file:
+        with open(
+            path,
+            "r",
+            encoding="utf-8",
+        ) as file:
             return json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
+
+    except (
+        FileNotFoundError,
+        json.JSONDecodeError,
+        OSError,
+    ):
         return default
 
 
-def save_json(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
+# =========================================================
+# INITIAL DATA
+# =========================================================
 
-    temp_file = path.with_suffix(path.suffix + ".tmp")
+def ensure_data_files():
 
-    with open(temp_file, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
+    os.makedirs(
+        DATA_DIR,
+        exist_ok=True,
+    )
 
-    temp_file.replace(path)
+    if not os.path.exists(MEMBERS_FILE):
+        save_json(
+            MEMBERS_FILE,
+            DEFAULT_MEMBERS,
+        )
 
+    if not os.path.exists(SETTINGS_FILE):
+        save_json(
+            SETTINGS_FILE,
+            DEFAULT_SETTINGS,
+        )
 
-def load_expenses():
-    return load_json(EXPENSES_FILE, [])
+    if not os.path.exists(EXPENSES_FILE):
+        save_json(
+            EXPENSES_FILE,
+            [],
+        )
+
+    if not os.path.exists(USERS_FILE):
+        save_json(
+            USERS_FILE,
+            [],
+        )
+
+    synchronize_users()
 
 
 def load_members():
-    members = load_json(MEMBERS_FILE, DEFAULT_MEMBERS)
+    members = load_json(
+        MEMBERS_FILE,
+        DEFAULT_MEMBERS,
+    )
 
     if not isinstance(members, list):
-        members = DEFAULT_MEMBERS.copy()
-
-    members = members[:8]
-
-    while len(members) < 8:
-        members.append(f"Member {len(members) + 1}")
+        return DEFAULT_MEMBERS.copy()
 
     return members
 
@@ -118,226 +235,746 @@ def load_members():
 def load_settings():
     settings = load_json(
         SETTINGS_FILE,
-        {
-            "trip_date": datetime.now().strftime("%Y-%m-%d"),
-            "contribution_collected": 0,
-            "contribution_by": "Hitesh",
-        },
+        DEFAULT_SETTINGS.copy(),
     )
 
-    if "trip_date" not in settings:
-        settings["trip_date"] = datetime.now().strftime("%Y-%m-%d")
-
-    if "contribution_collected" not in settings:
-        settings["contribution_collected"] = 0
-
-    if "contribution_by" not in settings:
-        settings["contribution_by"] = "Hitesh"
+    if not isinstance(settings, dict):
+        settings = DEFAULT_SETTINGS.copy()
 
     return settings
 
 
-# ============================================================
-# MONEY HELPERS
-# ============================================================
-
-def money(value):
-    try:
-        return Decimal(str(value)).quantize(Decimal("0.01"))
-    except (InvalidOperation, TypeError, ValueError):
-        return Decimal("0.00")
-
-
-def money_float(value):
-    return float(money(value))
-
-
-def money_string(value):
-    return f"{money(value):.2f}"
-
-
-# ============================================================
-# EXPENSE HELPERS
-# ============================================================
-
-def get_shared_members(expense, members):
-    shared_by = expense.get("shared_by")
-
-    if not shared_by:
-        return members.copy()
-
-    valid_members = [
-        member for member in shared_by
-        if member in members
-    ]
-
-    return valid_members or members.copy()
-
-
-def split_amount(amount, names):
-    amount = money(amount)
-
-    if not names:
-        return {}
-
-    count = len(names)
-
-    base = (amount / count).quantize(
-        Decimal("0.01")
+def load_expenses():
+    expenses = load_json(
+        EXPENSES_FILE,
+        [],
     )
 
-    remainder = amount - (base * count)
+    if not isinstance(expenses, list):
+        return []
 
-    result = {
-        name: base
-        for name in names
+    return expenses
+
+
+def load_users():
+    users = load_json(
+        USERS_FILE,
+        [],
+    )
+
+    if not isinstance(users, list):
+        return []
+
+    return users
+
+
+# =========================================================
+# USER MANAGEMENT
+# =========================================================
+
+def synchronize_users():
+
+    members = load_members()
+    users = load_users()
+
+    existing_members = {
+        user.get("member")
+        for user in users
+        if isinstance(user, dict)
     }
 
-    cents = int(
-        (remainder * Decimal("100")).to_integral_value()
+    changed = False
+
+    for member in members:
+
+        if member in existing_members:
+            continue
+
+        username = make_unique_username(
+            member,
+            users,
+        )
+
+        users.append(
+            {
+                "username": username,
+                "password_hash": generate_password_hash(
+                    "change-me"
+                ),
+                "member": member,
+                "access": "read",
+                "enabled": True,
+                "must_change_password": True,
+            }
+        )
+
+        changed = True
+
+    valid_members = set(members)
+
+    filtered_users = [
+        user
+        for user in users
+        if user.get("member") in valid_members
+    ]
+
+    if len(filtered_users) != len(users):
+        users = filtered_users
+        changed = True
+
+    if changed:
+        save_json(
+            USERS_FILE,
+            users,
+        )
+
+
+def make_unique_username(member, users):
+
+    base = "".join(
+        character.lower()
+        if character.isalnum()
+        else "_"
+        for character in member
+    ).strip("_")
+
+    if not base:
+        base = "member"
+
+    username = base
+    counter = 2
+
+    existing = {
+        user.get("username", "").lower()
+        for user in users
+    }
+
+    while username.lower() in existing:
+        username = f"{base}{counter}"
+        counter += 1
+
+    return username
+
+
+# =========================================================
+# AUTHENTICATION
+# =========================================================
+
+def get_current_user():
+
+    if not session.get("logged_in"):
+        return None
+
+    return {
+        "username": session.get("username"),
+        "member": session.get("member"),
+        "access": session.get("access"),
+        "is_admin": session.get("is_admin", False),
+    }
+
+
+def login_user(
+    username,
+    member=None,
+    access="read",
+    is_admin=False,
+):
+
+    session.clear()
+
+    session["logged_in"] = True
+    session["username"] = username
+    session["member"] = member
+    session["access"] = access
+    session["is_admin"] = is_admin
+
+
+def logout_user():
+
+    session.clear()
+
+
+def is_admin():
+
+    return (
+        session.get("logged_in")
+        and session.get("is_admin") is True
     )
 
-    for index in range(abs(cents)):
-        name = names[index % count]
 
-        if cents > 0:
-            result[name] += Decimal("0.01")
-        else:
-            result[name] -= Decimal("0.01")
+def has_write_access():
+
+    if not session.get("logged_in"):
+        return False
+
+    if session.get("is_admin") is True:
+        return True
+
+    return session.get("access") == "write"
+
+
+def login_required(view):
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+
+        if not session.get("logged_in"):
+            flash(
+                "Please login first.",
+                "error",
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def write_required(view):
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+
+        if not session.get("logged_in"):
+            return redirect(
+                url_for("login")
+            )
+
+        if not has_write_access():
+
+            flash(
+                "Read-only access. You cannot modify trip data.",
+                "error",
+            )
+
+            return redirect(
+                url_for("index")
+            )
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view):
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+
+        if not session.get("logged_in"):
+            return redirect(
+                url_for("login")
+            )
+
+        if not is_admin():
+
+            flash(
+                "Administrator access required.",
+                "error",
+            )
+
+            return redirect(
+                url_for("index")
+            )
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+# =========================================================
+# LOGIN
+# =========================================================
+
+@app.route(
+    "/login",
+    methods=["GET", "POST"],
+)
+def login():
+
+    if session.get("logged_in"):
+        if is_admin():
+            return redirect(
+                url_for("dashboard")
+            )
+
+        return redirect(
+            url_for("index")
+        )
+
+    if request.method == "POST":
+
+        username = request.form.get(
+            "username",
+            "",
+        ).strip()
+
+        password = request.form.get(
+            "password",
+            "",
+        )
+
+        if (
+            username == DASHBOARD_USERNAME
+            and password == DASHBOARD_PASSWORD
+        ):
+
+            login_user(
+                username=username,
+                is_admin=True,
+                access="write",
+            )
+
+            return redirect(
+                url_for("dashboard")
+            )
+
+        users = load_users()
+
+        matched_user = None
+
+        for user in users:
+
+            if (
+                user.get("username", "").lower()
+                == username.lower()
+            ):
+                matched_user = user
+                break
+
+        if matched_user is None:
+
+            flash(
+                "Invalid username or password.",
+                "error",
+            )
+
+            return render_template(
+                "login.html"
+            )
+
+        if not matched_user.get(
+            "enabled",
+            True,
+        ):
+
+            flash(
+                "This account is disabled.",
+                "error",
+            )
+
+            return render_template(
+                "login.html"
+            )
+
+        password_hash = matched_user.get(
+            "password_hash",
+            "",
+        )
+
+        if not check_password_hash(
+            password_hash,
+            password,
+        ):
+
+            flash(
+                "Invalid username or password.",
+                "error",
+            )
+
+            return render_template(
+                "login.html"
+            )
+
+        login_user(
+            username=matched_user["username"],
+            member=matched_user["member"],
+            access=matched_user.get(
+                "access",
+                "read",
+            ),
+            is_admin=False,
+        )
+
+        if matched_user.get(
+            "must_change_password",
+            False,
+        ):
+
+            flash(
+                "Please ask the administrator to change your initial password.",
+                "info",
+            )
+
+        return redirect(
+            url_for("index")
+        )
+
+    return render_template(
+        "login.html"
+    )
+
+
+@app.route("/logout")
+def logout():
+
+    logout_user()
+
+    return redirect(
+        url_for("login")
+    )
+
+
+# =========================================================
+# PASSWORD HASH UPDATE
+# =========================================================
+
+def update_user_password(
+    user,
+    password,
+):
+
+    user["password_hash"] = generate_password_hash(
+        password
+    )
+
+    user["must_change_password"] = False
+
+
+# =========================================================
+# MONEY
+# =========================================================
+
+def money(value):
+
+    try:
+        return round(
+            float(value),
+            2,
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return 0.0
+
+
+# =========================================================
+# EXPENSE PREPARATION
+# =========================================================
+
+def prepare_expense(expense):
+
+    result = dict(expense)
+
+    result["amount"] = money(
+        result.get("amount", 0)
+    )
+
+    shared_by = result.get(
+        "shared_by",
+        [],
+    )
+
+    if not isinstance(
+        shared_by,
+        list,
+    ):
+        shared_by = []
+
+    result["shared_by"] = shared_by
 
     return result
 
 
-# ============================================================
-# FINANCIAL CALCULATIONS
-# ============================================================
+# =========================================================
+# MEMBER CONTRIBUTIONS
+# =========================================================
 
-def calculate_financials(expenses, members, settings):
-    total = Decimal("0.00")
+def get_member_contributions(
+    members,
+    settings,
+):
+    """
+    Individual contribution per member.
 
-    category_totals = {
-        category: Decimal("0.00")
-        for category in CATEGORIES
+    Backward compatible: if the old single-value settings
+    (contribution_collected + contribution_by) exist and no
+    per-member data has been saved yet, the whole amount is
+    assigned to contribution_by.
+    """
+
+    stored = settings.get(
+        "member_contributions"
+    )
+
+    contributions = {
+        member: 0.0
+        for member in members
     }
 
+    if isinstance(stored, dict) and stored:
+
+        for member in members:
+            contributions[member] = money(
+                stored.get(
+                    member,
+                    0,
+                )
+            )
+
+        return contributions
+
+    legacy_amount = money(
+        settings.get(
+            "contribution_collected",
+            0,
+        )
+    )
+
+    legacy_member = settings.get(
+        "contribution_by",
+        "",
+    )
+
+    if legacy_amount > 0 and legacy_member in contributions:
+        contributions[legacy_member] = legacy_amount
+
+    return contributions
+
+
+# =========================================================
+# FINANCIAL CALCULATIONS
+# =========================================================
+
+def calculate_financials(
+    members,
+    expenses,
+    settings,
+):
+
     member_paid = {
-        member: Decimal("0.00")
+        member: 0.0
         for member in members
     }
 
     member_shared = {
-        member: Decimal("0.00")
+        member: 0.0
         for member in members
     }
 
-    vehicle_totals = {
-        vehicle: Decimal("0.00")
-        for vehicle in VEHICLES
-    }
+    category_totals = {}
+
+    vehicle_totals = {}
+
+    total = 0.0
 
     for expense in expenses:
-        amount = money(expense.get("amount", 0))
+
+        expense = prepare_expense(
+            expense
+        )
+
+        amount = money(
+            expense.get(
+                "amount",
+                0,
+            )
+        )
 
         total += amount
 
-        category = expense.get("category", "Other")
-
-        if category not in category_totals:
-            category_totals[category] = Decimal("0.00")
-
-        category_totals[category] += amount
-
-        paid_by = expense.get("paid_by")
+        paid_by = expense.get(
+            "paid_by"
+        )
 
         if paid_by in member_paid:
             member_paid[paid_by] += amount
 
-        vehicle = expense.get("vehicle")
-
-        if vehicle in vehicle_totals:
-            vehicle_totals[vehicle] += amount
-
-        shared_members = get_shared_members(
-            expense,
-            members
+        category = expense.get(
+            "category",
+            "Other",
         )
 
-        shares = split_amount(
-            amount,
-            shared_members
+        category_totals[category] = (
+            category_totals.get(
+                category,
+                0.0,
+            )
+            + amount
         )
 
-        for member, share in shares.items():
-            if member in member_shared:
+        vehicle = expense.get(
+            "vehicle",
+            "",
+        )
+
+        if vehicle:
+
+            vehicle_totals[vehicle] = (
+                vehicle_totals.get(
+                    vehicle,
+                    0.0,
+                )
+                + amount
+            )
+
+        shared_by = expense.get(
+            "shared_by",
+            [],
+        )
+
+        if not shared_by:
+            shared_by = members
+
+        valid_shared = [
+            member
+            for member in shared_by
+            if member in members
+        ]
+
+        if valid_shared:
+
+            share = (
+                amount
+                / len(valid_shared)
+            )
+
+            for member in valid_shared:
                 member_shared[member] += share
 
-    custom_final_shares = settings.get(
-        "custom_final_shares"
+    member_contribution = get_member_contributions(
+        members,
+        settings,
     )
 
-    if custom_final_shares:
-        custom_total = sum(
-            (
-                money(custom_final_shares.get(member, 0))
-                for member in members
-            ),
-            Decimal("0.00"),
-        )
+    contribution_collected = money(
+        sum(member_contribution.values())
+    )
 
-        if custom_total == total:
-            final_share = {
-                member: money(
-                    custom_final_shares.get(member, 0)
-                )
-                for member in members
-            }
+    contributors_count = sum(
+        1
+        for value in member_contribution.values()
+        if value > 0
+    )
+
+    remaining = (
+        contribution_collected
+        - total
+    )
+
+    normal_final_share = member_shared.copy()
+
+    custom_final_shares = settings.get(
+        "custom_final_shares",
+        {},
+    )
+
+    final_share = {}
+
+    for member in members:
+
+        if member in custom_final_shares:
+
+            final_share[member] = money(
+                custom_final_shares[member]
+            )
+
         else:
-            final_share = member_shared.copy()
-    else:
-        final_share = member_shared.copy()
+
+            final_share[member] = money(
+                normal_final_share.get(
+                    member,
+                    0,
+                )
+            )
 
     balances = {}
 
     for member in members:
-        balances[member] = (
-            member_paid[member]
-            - final_share[member]
+
+        balances[member] = money(
+            member_contribution.get(
+                member,
+                0,
+            )
+            + member_paid.get(
+                member,
+                0,
+            )
+            - final_share.get(
+                member,
+                0,
+            )
         )
 
-    contribution_collected = money(
-        settings.get("contribution_collected", 0)
-    )
-
-    remaining = contribution_collected - total
-
     return {
-        "total": total,
-        "category_totals": category_totals,
+        "total": money(total),
+        "contribution_collected": contribution_collected,
+        "remaining": money(remaining),
+        "member_contribution": member_contribution,
+        "contributors_count": contributors_count,
         "member_paid": member_paid,
         "member_shared": member_shared,
+        "normal_final_share": normal_final_share,
         "final_share": final_share,
         "balances": balances,
+        "category_totals": category_totals,
         "vehicle_totals": vehicle_totals,
-        "contribution_collected": contribution_collected,
-        "remaining": remaining,
     }
 
 
-def calculate_settlements(balances):
+# =========================================================
+# SETTLEMENT
+# =========================================================
+
+def build_settlements(
+    members,
+    balances,
+):
+
     creditors = []
     debtors = []
 
-    for member, balance in balances.items():
-        balance = money(balance)
+    for member in members:
 
-        if balance > Decimal("0.00"):
+        balance = money(
+            balances.get(
+                member,
+                0,
+            )
+        )
+
+        if balance > 0.01:
+
             creditors.append(
-                [member, balance]
+                {
+                    "member": member,
+                    "amount": balance,
+                }
             )
-        elif balance < Decimal("0.00"):
+
+        elif balance < -0.01:
+
             debtors.append(
-                [member, -balance]
+                {
+                    "member": member,
+                    "amount": abs(balance),
+                }
             )
+
+    creditors.sort(
+        key=lambda item: item["amount"],
+        reverse=True,
+    )
+
+    debtors.sort(
+        key=lambda item: item["amount"],
+        reverse=True,
+    )
 
     settlements = []
 
@@ -348,273 +985,85 @@ def calculate_settlements(balances):
         creditor_index < len(creditors)
         and debtor_index < len(debtors)
     ):
-        creditor_name, creditor_amount = creditors[
+
+        creditor = creditors[
             creditor_index
         ]
 
-        debtor_name, debtor_amount = debtors[
+        debtor = debtors[
             debtor_index
         ]
 
         amount = min(
-            creditor_amount,
-            debtor_amount
+            creditor["amount"],
+            debtor["amount"],
         )
 
-        settlements.append(
-            {
-                "from": debtor_name,
-                "to": creditor_name,
-                "amount": amount,
-            }
+        amount = money(amount)
+
+        if amount > 0:
+
+            settlements.append(
+                {
+                    "from": debtor["member"],
+                    "to": creditor["member"],
+                    "amount": amount,
+                }
+            )
+
+        creditor["amount"] = money(
+            creditor["amount"]
+            - amount
         )
 
-        creditors[creditor_index][1] -= amount
-        debtors[debtor_index][1] -= amount
+        debtor["amount"] = money(
+            debtor["amount"]
+            - amount
+        )
 
-        if creditors[creditor_index][1] <= Decimal("0.00"):
+        if creditor["amount"] <= 0.01:
             creditor_index += 1
 
-        if debtors[debtor_index][1] <= Decimal("0.00"):
+        if debtor["amount"] <= 0.01:
             debtor_index += 1
 
     return settlements
 
 
-# ============================================================
-# TIME HELPERS
-# ============================================================
-
-def convert_12_hour_to_24(hour, minute, ampm):
-    hour = int(hour)
-    minute = int(minute)
-
-    ampm = ampm.upper()
-
-    if ampm == "AM":
-        if hour == 12:
-            hour = 0
-    else:
-        if hour != 12:
-            hour += 12
-
-    return f"{hour:02d}:{minute:02d}"
-
-
-def format_time_12_hour(time_value):
-    if not time_value:
-        return ""
-
-    try:
-        parsed = datetime.strptime(
-            time_value,
-            "%H:%M"
-        )
-
-        return parsed.strftime("%I:%M %p").lstrip("0")
-
-    except ValueError:
-        return time_value
-
-
-# ============================================================
-# GIT AUTO PUSH
-# ============================================================
-
-def run_git_command(args):
-    result = subprocess.run(
-        args,
-        cwd=BASE_DIR,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            result.stderr.strip()
-            or result.stdout.strip()
-            or "Git command failed."
-        )
-
-    return result.stdout.strip()
-
-
-def git_push():
-    enabled = os.getenv(
-        "GITHUB_AUTO_PUSH",
-        "true"
-    ).lower() == "true"
-
-    if not enabled:
-        return {
-            "success": True,
-            "message": "Git auto-push disabled."
-        }
-
-    repo_url = os.getenv(
-        "GITHUB_REPO_URL",
-        ""
-    ).strip()
-
-    branch = os.getenv(
-        "GITHUB_BRANCH",
-        "trip"
-    ).strip()
-
-    git_name = os.getenv(
-        "GIT_USER_NAME",
-        "Santosh"
-    ).strip()
-
-    git_email = os.getenv(
-        "GIT_USER_EMAIL",
-        ""
-    ).strip()
-
-    if not repo_url:
-        return {
-            "success": False,
-            "message": "GITHUB_REPO_URL is not configured."
-        }
-
-    try:
-        git_dir = BASE_DIR / ".git"
-
-        if not git_dir.exists():
-            run_git_command(["git", "init"])
-
-        try:
-            current_origin = run_git_command(
-                ["git", "remote", "get-url", "origin"]
-            )
-        except RuntimeError:
-            current_origin = ""
-
-        if current_origin != repo_url:
-            if current_origin:
-                run_git_command(
-                    [
-                        "git",
-                        "remote",
-                        "set-url",
-                        "origin",
-                        repo_url,
-                    ]
-                )
-            else:
-                run_git_command(
-                    [
-                        "git",
-                        "remote",
-                        "add",
-                        "origin",
-                        repo_url,
-                    ]
-                )
-
-        if git_name:
-            run_git_command(
-                [
-                    "git",
-                    "config",
-                    "user.name",
-                    git_name,
-                ]
-            )
-
-        if git_email:
-            run_git_command(
-                [
-                    "git",
-                    "config",
-                    "user.email",
-                    git_email,
-                ]
-            )
-
-        run_git_command(
-            [
-                "git",
-                "add",
-                "data/expenses.json",
-                "data/members.json",
-                "data/settings.json",
-            ]
-        )
-
-        status = run_git_command(
-            [
-                "git",
-                "status",
-                "--porcelain",
-            ]
-        )
-
-        if not status:
-            return {
-                "success": True,
-                "message": "No data changes to push."
-            }
-
-        run_git_command(
-            [
-                "git",
-                "commit",
-                "-m",
-                "Update trip expense data",
-            ]
-        )
-
-        run_git_command(
-            [
-                "git",
-                "push",
-                "-u",
-                "origin",
-                branch,
-            ]
-        )
-
-        return {
-            "success": True,
-            "message": f"Changes pushed to GitHub branch '{branch}'."
-        }
-
-    except Exception as exc:
-        return {
-            "success": False,
-            "message": str(exc),
-        }
-
-
-# ============================================================
-# ROUTES
-# ============================================================
+# =========================================================
+# MAIN DASHBOARD
+# =========================================================
 
 @app.route("/")
+@login_required
 def index():
-    ensure_data_files()
 
-    expenses = load_expenses()
     members = load_members()
     settings = load_settings()
+    expenses = load_expenses()
+
+    expenses = [
+        prepare_expense(expense)
+        for expense in expenses
+    ]
+
+    financials = calculate_financials(
+        members,
+        expenses,
+        settings,
+    )
+
+    settlements = build_settlements(
+        members,
+        financials["balances"],
+    )
 
     selected_date = request.args.get(
         "date",
-        settings.get("trip_date")
-    )
-
-    if not selected_date:
-        selected_date = datetime.now().strftime(
-            "%Y-%m-%d"
-        )
-
-    financials = calculate_financials(
-        expenses,
-        members,
-        settings
+        settings.get(
+            "trip_date",
+            date.today().isoformat(),
+        ),
     )
 
     daily_expenses = [
@@ -623,319 +1072,321 @@ def index():
         if expense.get("date") == selected_date
     ]
 
-    daily_total = sum(
-        (
-            money(expense.get("amount", 0))
+    daily_total = money(
+        sum(
+            money(
+                expense.get(
+                    "amount",
+                    0,
+                )
+            )
             for expense in daily_expenses
-        ),
-        Decimal("0.00"),
-    )
-
-    expenses_sorted = sorted(
-        expenses,
-        key=lambda item: (
-            item.get("date", ""),
-            item.get("time", ""),
-        ),
-        reverse=True,
-    )
-
-    for expense in expenses_sorted:
-        expense["display_time"] = format_time_12_hour(
-            expense.get("time", "")
         )
-
-    settlements = calculate_settlements(
-        financials["balances"]
     )
 
-    current_time = datetime.now()
+    now = datetime.now()
+
+    current_hour = now.strftime(
+        "%I"
+    )
+
+    current_minute = now.strftime(
+        "%M"
+    )
+
+    current_ampm = now.strftime(
+        "%p"
+    )
+
+    current_user = get_current_user()
 
     return render_template(
         "index.html",
-        expenses=expenses_sorted,
-        daily_expenses=sorted(
-            daily_expenses,
-            key=lambda item: item.get("time", ""),
-            reverse=True,
-        ),
-        daily_total=daily_total,
-        selected_date=selected_date,
         members=members,
         settings=settings,
-        categories=CATEGORIES,
-        vehicles=VEHICLES,
+        expenses=expenses,
         financials=financials,
         settlements=settlements,
-        current_hour=current_time.strftime("%I").lstrip("0"),
-        current_minute=current_time.strftime("%M"),
-        current_ampm=current_time.strftime("%p"),
+        daily_expenses=daily_expenses,
+        daily_total=daily_total,
+        selected_date=selected_date,
+        categories=CATEGORIES,
+        vehicles=VEHICLES,
+        current_hour=current_hour,
+        current_minute=current_minute,
+        current_ampm=current_ampm,
+        current_user=current_user,
+        can_write=has_write_access(),
+        is_admin=is_admin(),
     )
 
 
-@app.route("/settings", methods=["POST"])
-def update_settings():
-    settings = load_settings()
+# =========================================================
+# ADMIN DASHBOARD
+# =========================================================
+
+@app.route("/dashboard")
+@admin_required
+def dashboard():
+
     members = load_members()
+    users = load_users()
 
-    trip_date = request.form.get(
-        "trip_date",
-        ""
-    ).strip()
+    user_map = {
+        user.get("member"): user
+        for user in users
+    }
 
-    contribution_collected = request.form.get(
-        "contribution_collected",
-        "0"
-    ).strip()
+    member_users = []
 
-    contribution_by = request.form.get(
-        "contribution_by",
-        "Hitesh"
-    ).strip()
+    for member in members:
 
-    try:
-        contribution_collected = money(
-            contribution_collected
+        user = user_map.get(
+            member
         )
-    except Exception:
-        contribution_collected = Decimal("0.00")
 
-    if contribution_by not in members:
-        contribution_by = "Hitesh"
+        if user is None:
 
-    settings["trip_date"] = (
-        trip_date
-        or settings.get("trip_date")
-        or datetime.now().strftime("%Y-%m-%d")
+            username = make_unique_username(
+                member,
+                users,
+            )
+
+            user = {
+                "username": username,
+                "member": member,
+                "access": "read",
+                "enabled": True,
+                "must_change_password": True,
+            }
+
+        member_users.append(
+            user
+        )
+
+    return render_template(
+        "dashboard.html",
+        members=members,
+        users=member_users,
+        current_user=get_current_user(),
     )
 
-    settings["contribution_collected"] = float(
-        contribution_collected
+
+# =========================================================
+# ADMIN USER UPDATE
+# =========================================================
+
+@app.route(
+    "/dashboard/update-user",
+    methods=["POST"],
+)
+@admin_required
+def dashboard_update_user():
+
+    member = request.form.get(
+        "member",
+        "",
+    ).strip()
+
+    username = request.form.get(
+        "username",
+        "",
+    ).strip()
+
+    access = request.form.get(
+        "access",
+        "read",
+    ).strip().lower()
+
+    enabled = (
+        request.form.get(
+            "enabled"
+        )
+        == "on"
     )
 
-    settings["contribution_by"] = contribution_by
-
-    save_json(
-        SETTINGS_FILE,
-        settings
+    password = request.form.get(
+        "password",
+        "",
     )
 
-    result = git_push()
-
-    if result["success"]:
+    if not member:
         flash(
-            "Settings updated successfully.",
-            "success"
+            "Member is required.",
+            "error",
         )
+
+        return redirect(
+            url_for("dashboard")
+        )
+
+    if not username:
+        flash(
+            "Username cannot be empty.",
+            "error",
+        )
+
+        return redirect(
+            url_for("dashboard")
+        )
+
+    if access not in (
+        "read",
+        "write",
+    ):
+        access = "read"
+
+    users = load_users()
+
+    target_user = None
+
+    for user in users:
+
+        if user.get("member") == member:
+            target_user = user
+            break
+
+    if target_user is None:
+
+        target_user = {
+            "member": member,
+            "username": username,
+            "password_hash": generate_password_hash(
+                "change-me"
+            ),
+            "access": access,
+            "enabled": enabled,
+            "must_change_password": True,
+        }
+
+        users.append(
+            target_user
+        )
+
     else:
-        flash(
-            f"Settings saved, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
-        )
 
-    return redirect(url_for("index"))
+        for user in users:
 
+            if (
+                user is not target_user
+                and user.get("username", "").lower()
+                == username.lower()
+            ):
 
-@app.route("/members", methods=["POST"])
-def update_members():
-    old_members = load_members()
-
-    new_members = []
-
-    for index in range(8):
-        value = request.form.get(
-            f"member_{index}",
-            ""
-        ).strip()
-
-        new_members.append(
-            value or f"Member {index + 1}"
-        )
-
-    if len(set(new_members)) != 8:
-        flash(
-            "All 8 member names must be unique.",
-            "error"
-        )
-        return redirect(url_for("index"))
-
-    expenses = load_expenses()
-
-    for expense in expenses:
-        paid_by = expense.get("paid_by")
-
-        if paid_by in old_members:
-            old_index = old_members.index(paid_by)
-            expense["paid_by"] = new_members[
-                old_index
-            ]
-
-        shared_by = expense.get("shared_by")
-
-        if shared_by:
-            updated_shared = []
-
-            for member in shared_by:
-                if member in old_members:
-                    old_index = old_members.index(
-                        member
-                    )
-
-                    new_member = new_members[
-                        old_index
-                    ]
-
-                    if new_member not in updated_shared:
-                        updated_shared.append(
-                            new_member
-                        )
-
-            expense["shared_by"] = updated_shared
-
-    settings = load_settings()
-
-    if settings.get("contribution_by") in old_members:
-        old_index = old_members.index(
-            settings["contribution_by"]
-        )
-
-        settings["contribution_by"] = new_members[
-            old_index
-        ]
-
-    custom_split = settings.get(
-        "custom_final_shares"
-    )
-
-    if custom_split:
-        updated_split = {}
-
-        for old_member, amount in custom_split.items():
-            if old_member in old_members:
-                old_index = old_members.index(
-                    old_member
+                flash(
+                    "Username is already in use.",
+                    "error",
                 )
 
-                updated_split[
-                    new_members[old_index]
-                ] = amount
+                return redirect(
+                    url_for("dashboard")
+                )
 
-        settings["custom_final_shares"] = updated_split
+        target_user["username"] = username
+        target_user["access"] = access
+        target_user["enabled"] = enabled
+
+        if password:
+
+            if len(password) < 6:
+
+                flash(
+                    "Password must contain at least 6 characters.",
+                    "error",
+                )
+
+                return redirect(
+                    url_for("dashboard")
+                )
+
+            update_user_password(
+                target_user,
+                password,
+            )
 
     save_json(
-        MEMBERS_FILE,
-        new_members
+        USERS_FILE,
+        users,
     )
 
-    save_json(
-        EXPENSES_FILE,
-        expenses
+    flash(
+        f"Access settings updated for {member}.",
+        "success",
     )
 
-    save_json(
-        SETTINGS_FILE,
-        settings
+    return redirect(
+        url_for("dashboard")
     )
 
-    result = git_push()
 
-    if result["success"]:
-        flash(
-            "Members updated successfully.",
-            "success"
-        )
-    else:
-        flash(
-            f"Members saved, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
-        )
+# =========================================================
+# ADD EXPENSE
+# =========================================================
 
-    return redirect(url_for("index"))
-
-
-@app.route("/add", methods=["POST"])
+@app.route(
+    "/add_expense",
+    methods=["POST"],
+)
+@write_required
 def add_expense():
-    expenses = load_expenses()
+
     members = load_members()
 
     date_value = request.form.get(
         "date",
-        ""
-    ).strip()
+        date.today().isoformat(),
+    )
 
     hour = request.form.get(
         "hour",
-        "12"
-    ).strip()
+        "",
+    )
 
     minute = request.form.get(
         "minute",
-        "00"
-    ).strip()
+        "",
+    )
 
     ampm = request.form.get(
         "ampm",
-        "AM"
-    ).strip().upper()
+        "",
+    )
 
     category = request.form.get(
         "category",
-        "Other"
-    ).strip()
+        "Other",
+    )
 
-    amount = request.form.get(
-        "amount",
-        "0"
-    ).strip()
+    amount = money(
+        request.form.get(
+            "amount",
+            0,
+        )
+    )
 
     paid_by = request.form.get(
         "paid_by",
-        ""
-    ).strip()
+        "",
+    )
 
     vehicle = request.form.get(
         "vehicle",
-        ""
-    ).strip()
+        "",
+    )
 
     location = request.form.get(
         "location",
-        ""
+        "",
     ).strip()
 
     description = request.form.get(
         "description",
-        ""
+        "",
     ).strip()
 
     shared_by = request.form.getlist(
         "shared_by"
     )
-
-    if category not in CATEGORIES:
-        category = "Other"
-
-    try:
-        amount_decimal = money(amount)
-
-        if amount_decimal <= Decimal("0.00"):
-            raise ValueError
-
-    except (ValueError, InvalidOperation):
-        flash(
-            "Please enter a valid expense amount.",
-            "error"
-        )
-        return redirect(url_for("index"))
-
-    if paid_by not in members:
-        flash(
-            "Please select who paid for the expense.",
-            "error"
-        )
-        return redirect(url_for("index"))
 
     shared_by = [
         member
@@ -946,303 +1397,438 @@ def add_expense():
     if not shared_by:
         shared_by = members.copy()
 
-    if category not in ["Fuel", "Toll"]:
+    if amount <= 0:
+
+        flash(
+            "Expense amount must be greater than zero.",
+            "error",
+        )
+
+        return redirect(
+            url_for("index")
+        )
+
+    if paid_by not in members:
+
+        flash(
+            "Invalid member selected for Paid By.",
+            "error",
+        )
+
+        return redirect(
+            url_for("index")
+        )
+
+    if category not in CATEGORIES:
+
+        category = "Other"
+
+    if category not in (
+        "Fuel",
+        "Toll",
+    ):
+
         vehicle = ""
 
-    try:
-        time_24 = convert_12_hour_to_24(
-            hour,
-            minute,
-            ampm
-        )
-    except (ValueError, TypeError):
-        flash(
-            "Please select a valid time.",
-            "error"
-        )
-        return redirect(url_for("index"))
-
-    if not date_value:
-        date_value = datetime.now().strftime(
-            "%Y-%m-%d"
-        )
-
     expense = {
-        "id": str(uuid.uuid4()),
+        "id": uuid.uuid4().hex,
         "date": date_value,
-        "time": time_24,
+        "hour": hour,
+        "minute": minute,
+        "ampm": ampm,
         "category": category,
-        "amount": float(amount_decimal),
+        "amount": amount,
         "paid_by": paid_by,
-        "shared_by": shared_by,
         "vehicle": vehicle,
         "location": location,
         "description": description,
-        "created_at": datetime.now().isoformat(
-            timespec="seconds"
+        "shared_by": shared_by,
+        "created_by": session.get(
+            "username"
         ),
+        "created_at": datetime.now().isoformat(),
     }
 
-    expenses.append(expense)
+    expenses = load_expenses()
 
-    settings = load_settings()
-
-    # A changed expense can make an old custom split invalid.
-    settings.pop("custom_final_shares", None)
+    expenses.append(
+        expense
+    )
 
     save_json(
         EXPENSES_FILE,
-        expenses
+        expenses,
     )
 
-    save_json(
-        SETTINGS_FILE,
-        settings
+    flash(
+        "Expense added successfully.",
+        "success",
     )
-
-    result = git_push()
-
-    if result["success"]:
-        flash(
-            "Expense added successfully.",
-            "success"
-        )
-    else:
-        flash(
-            f"Expense saved, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
-        )
 
     return redirect(
         url_for(
             "index",
-            date=date_value
+            date=date_value,
         )
     )
 
 
-@app.route("/delete/<expense_id>", methods=["POST"])
+# =========================================================
+# DELETE EXPENSE
+# =========================================================
+
+@app.route(
+    "/delete_expense/<expense_id>",
+    methods=["POST"],
+)
+@write_required
 def delete_expense(expense_id):
+
     expenses = load_expenses()
 
-    updated_expenses = [
+    original_count = len(
+        expenses
+    )
+
+    expenses = [
         expense
         for expense in expenses
         if expense.get("id") != expense_id
     ]
 
-    if len(updated_expenses) == len(expenses):
+    if len(expenses) == original_count:
+
         flash(
             "Expense not found.",
-            "error"
+            "error",
         )
-        return redirect(url_for("index"))
 
-    save_json(
-        EXPENSES_FILE,
-        updated_expenses
-    )
-
-    settings = load_settings()
-    settings.pop("custom_final_shares", None)
-
-    save_json(
-        SETTINGS_FILE,
-        settings
-    )
-
-    result = git_push()
-
-    if result["success"]:
-        flash(
-            "Expense deleted successfully.",
-            "success"
-        )
     else:
-        flash(
-            f"Expense deleted, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
+
+        save_json(
+            EXPENSES_FILE,
+            expenses,
         )
 
-    return redirect(url_for("index"))
+        flash(
+            "Expense deleted.",
+            "success",
+        )
 
-
-@app.route("/custom-split", methods=["POST"])
-def custom_split():
-    members = load_members()
-    expenses = load_expenses()
-    settings = load_settings()
-
-    financials = calculate_financials(
-        expenses,
-        members,
-        settings
+    return redirect(
+        url_for("index")
     )
 
-    total = financials["total"]
 
-    custom_shares = {}
-    custom_total = Decimal("0.00")
+# =========================================================
+# UPDATE SETTINGS
+# =========================================================
+
+@app.route(
+    "/update_settings",
+    methods=["POST"],
+)
+@write_required
+def update_settings():
+
+    settings = load_settings()
+
+    settings["trip_date"] = request.form.get(
+        "trip_date",
+        date.today().isoformat(),
+    )
+
+    members = load_members()
+
+    member_contributions = {}
 
     for member in members:
-        amount = money(
-            request.form.get(
-                f"share_{member}",
-                "0"
+
+        raw_value = request.form.get(
+            "contribution_" + member,
+            "",
+        ).strip()
+
+        amount = money(raw_value) if raw_value else 0.0
+
+        if amount < 0:
+
+            flash(
+                f"Contribution cannot be negative for {member}.",
+                "error",
             )
-        )
 
-        custom_shares[member] = float(amount)
-        custom_total += amount
+            return redirect(
+                url_for("index")
+            )
 
-    if custom_total != total:
-        flash(
-            "Custom final split must exactly equal "
-            f"the total trip expense of ₹{total:.2f}.",
-            "error"
-        )
-        return redirect(url_for("index"))
+        member_contributions[member] = amount
 
-    settings["custom_final_shares"] = custom_shares
+    settings["member_contributions"] = member_contributions
 
-    save_json(
-        SETTINGS_FILE,
-        settings
-    )
-
-    result = git_push()
-
-    if result["success"]:
-        flash(
-            "Custom final split saved.",
-            "success"
-        )
-    else:
-        flash(
-            f"Custom split saved, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
-        )
-
-    return redirect(url_for("index"))
-
-
-@app.route("/clear-custom-split", methods=["POST"])
-def clear_custom_split():
-    settings = load_settings()
-
-    settings.pop(
-        "custom_final_shares",
-        None
+    settings["contribution_collected"] = money(
+        sum(member_contributions.values())
     )
 
     save_json(
         SETTINGS_FILE,
-        settings
+        settings,
     )
 
-    result = git_push()
+    flash(
+        "Trip settings updated.",
+        "success",
+    )
 
-    if result["success"]:
+    return redirect(
+        url_for("index")
+    )
+
+
+# =========================================================
+# UPDATE MEMBERS
+# =========================================================
+
+@app.route(
+    "/update_members",
+    methods=["POST"],
+)
+@admin_required
+def update_members():
+
+    members = []
+
+    for index in range(1, 9):
+
+        member = request.form.get(
+            f"member_{index}",
+            "",
+        ).strip()
+
+        if member:
+            members.append(
+                member
+            )
+
+    if not members:
+
         flash(
-            "Custom split cleared.",
-            "success"
+            "At least one member is required.",
+            "error",
         )
-    else:
+
+        return redirect(
+            url_for("index")
+        )
+
+    if len(members) != len(set(members)):
+
         flash(
-            f"Custom split cleared, but GitHub push failed: "
-            f"{result['message']}",
-            "warning"
+            "Member names must be unique.",
+            "error",
         )
 
-    return redirect(url_for("index"))
+        return redirect(
+            url_for("index")
+        )
+
+    save_json(
+        MEMBERS_FILE,
+        members,
+    )
+
+    synchronize_users()
+
+    flash(
+        "Members updated.",
+        "success",
+    )
+
+    return redirect(
+        url_for("index")
+    )
 
 
-@app.route("/api/summary")
-def api_summary():
-    expenses = load_expenses()
+# =========================================================
+# CUSTOM SPLIT
+# =========================================================
+
+@app.route(
+    "/custom_split",
+    methods=["POST"],
+)
+@write_required
+def custom_split():
+
     members = load_members()
     settings = load_settings()
 
-    financials = calculate_financials(
-        expenses,
-        members,
-        settings
+    custom_shares = {}
+
+    for member in members:
+
+        field_name = (
+            "share_"
+            + member
+        )
+
+        value = request.form.get(
+            field_name,
+            "",
+        ).strip()
+
+        if value:
+
+            try:
+                amount = float(value)
+            except ValueError:
+
+                flash(
+                    f"Invalid share for {member}.",
+                    "error",
+                )
+
+                return redirect(
+                    url_for("index")
+                )
+
+            if amount < 0:
+
+                flash(
+                    f"Share cannot be negative for {member}.",
+                    "error",
+                )
+
+                return redirect(
+                    url_for("index")
+                )
+
+            custom_shares[member] = money(
+                amount
+            )
+
+    settings["custom_final_shares"] = (
+        custom_shares
     )
+
+    save_json(
+        SETTINGS_FILE,
+        settings,
+    )
+
+    flash(
+        "Custom final split saved.",
+        "success",
+    )
+
+    return redirect(
+        url_for("index")
+    )
+
+
+# =========================================================
+# CLEAR CUSTOM SPLIT
+# =========================================================
+
+@app.route(
+    "/clear_custom_split",
+    methods=["POST"],
+)
+@write_required
+def clear_custom_split():
+
+    settings = load_settings()
+
+    settings["custom_final_shares"] = {}
+
+    save_json(
+        SETTINGS_FILE,
+        settings,
+    )
+
+    flash(
+        "Custom final split cleared.",
+        "success",
+    )
+
+    return redirect(
+        url_for("index")
+    )
+
+
+# =========================================================
+# HEALTH
+# =========================================================
+
+@app.route("/api/health")
+def health():
 
     return jsonify(
         {
-            "total_expenses": money_float(
-                financials["total"]
+            "status": "ok",
+            "application": "Trip Expense Tracker",
+            "logged_in": bool(
+                session.get("logged_in")
             ),
-            "contribution_collected": money_float(
-                financials["contribution_collected"]
-            ),
-            "remaining": money_float(
-                financials["remaining"]
-            ),
-            "category_totals": {
-                category: money_float(amount)
-                for category, amount
-                in financials["category_totals"].items()
-            },
-            "vehicle_totals": {
-                vehicle: money_float(amount)
-                for vehicle, amount
-                in financials["vehicle_totals"].items()
-            },
-            "member_paid": {
-                member: money_float(amount)
-                for member, amount
-                in financials["member_paid"].items()
-            },
-            "member_shared": {
-                member: money_float(amount)
-                for member, amount
-                in financials["member_shared"].items()
-            },
-            "final_share": {
-                member: money_float(amount)
-                for member, amount
-                in financials["final_share"].items()
-            },
-            "balances": {
-                member: money_float(amount)
-                for member, amount
-                in financials["balances"].items()
-            },
         }
     )
 
 
-# ============================================================
-# START
-# ============================================================
+# =========================================================
+# CONFIG
+# =========================================================
+
+@app.route("/api/config")
+@login_required
+def api_config():
+
+    return jsonify(
+        {
+            "hostname": APP_HOSTNAME,
+            "public_url": PUBLIC_URL,
+            "user": get_current_user(),
+            "can_write": has_write_access(),
+            "is_admin": is_admin(),
+        }
+    )
+
+
+# =========================================================
+# START APPLICATION
+# =========================================================
 
 if __name__ == "__main__":
+
     ensure_data_files()
 
-    host = os.getenv("FLASK_HOST", "0.0.0.0")
-    port = int(os.getenv("FLASK_PORT", "5000"))
-    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    print()
+    print("=" * 60)
+    print("Trip Expense Tracker")
+    print("=" * 60)
+
+    print(
+        f"Local:      http://127.0.0.1:{PORT}"
+    )
+
+    print(
+        f"LAN:        http://<YOUR-LAN-IP>:{PORT}"
+    )
+
+    if APP_HOSTNAME:
+        print(
+            f"Hostname:   https://{APP_HOSTNAME}"
+        )
+
+    if PUBLIC_URL:
+        print(
+            f"Public URL: {PUBLIC_URL}"
+        )
 
     print("=" * 60)
-    print("TRIP EXPENSE TRACKER")
-    print("=" * 60)
-    print(f"Listening on: {host}:{port}")
     print()
-    print("Local:")
-    print(f"  http://127.0.0.1:{port}")
-    print()
-    print("LAN:")
-    print(f"  http://192.168.10.x:{port}")
-    print("=" * 60)
 
     app.run(
-        host=host,
-        port=port,
-        debug=debug,
-        threaded=True
+        host=HOST,
+        port=PORT,
+        debug=DEBUG,
     )

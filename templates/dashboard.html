@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Admin Dashboard - Trip Expense Tracker</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+<div class="app-shell">
+
+    <header class="topbar">
+
+        <div>
+
+            <div class="eyebrow">
+                ADMINISTRATION
+            </div>
+
+            <h1>
+                User Access Dashboard
+            </h1>
+
+            <p class="muted">
+                Manage trip member accounts and permissions.
+            </p>
+
+        </div>
+
+
+        <div class="topbar-actions">
+
+            <a
+                href="{{ url_for('index') }}"
+                class="secondary-button"
+            >
+                Trip Dashboard
+            </a>
+
+            <a
+                href="{{ url_for('logout') }}"
+                class="danger-button"
+            >
+                Logout
+            </a>
+
+        </div>
+
+    </header>
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            <div class="flash-container">
+
+                {% for category, message in messages %}
+
+                    <div class="flash {{ category }}">
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <main>
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        Trip Member Access
+                    </h2>
+
+                    <p class="muted">
+                        Configure username, password,
+                        access level and account status.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="access-table-wrap">
+
+                <table class="data-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Member
+                            </th>
+
+                            <th>
+                                Username
+                            </th>
+
+                            <th>
+                                Access
+                            </th>
+
+                            <th>
+                                Enabled
+                            </th>
+
+                            <th>
+                                New Password
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                    {% for user in users %}
+
+                        <tr>
+
+                            <form
+                                method="POST"
+                                action="{{ url_for('dashboard_update_user') }}"
+                            >
+
+                                <td>
+
+                                    <strong>
+                                        {{ user.member }}
+                                    </strong>
+
+                                    <input
+                                        type="hidden"
+                                        name="member"
+                                        value="{{ user.member }}"
+                                    >
+
+                                </td>
+
+
+                                <td>
+
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        value="{{ user.username }}"
+                                        required
+                                    >
+
+                                </td>
+
+
+                                <td>
+
+                                    <label class="access-option">
+
+                                        <input
+                                            type="radio"
+                                            name="access"
+                                            value="write"
+                                            {% if user.access == 'write' %}
+                                                checked
+                                            {% endif %}
+                                        >
+
+                                        <span>
+                                            ☑ Write
+                                        </span>
+
+                                    </label>
+
+
+                                    <label class="access-option">
+
+                                        <input
+                                            type="radio"
+                                            name="access"
+                                            value="read"
+                                            {% if user.access != 'write' %}
+                                                checked
+                                            {% endif %}
+                                        >
+
+                                        <span>
+                                            ☐ Read Only
+                                        </span>
+
+                                    </label>
+
+                                </td>
+
+
+                                <td>
+
+                                    <label class="switch">
+
+                                        <input
+                                            type="checkbox"
+                                            name="enabled"
+                                            {% if user.enabled %}
+                                                checked
+                                            {% endif %}
+                                        >
+
+                                        <span class="slider"></span>
+
+                                    </label>
+
+                                    <span class="status-text">
+
+                                        {% if user.enabled %}
+                                            Enabled
+                                        {% else %}
+                                            Disabled
+                                        {% endif %}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        placeholder="Leave blank"
+                                        autocomplete="new-password"
+                                    >
+
+                                </td>
+
+
+                                <td>
+
+                                    <button
+                                        type="submit"
+                                        class="primary-button"
+                                    >
+                                        Save
+                                    </button>
+
+                                </td>
+
+                            </form>
+
+                        </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <section class="panel access-info-panel">
+
+            <h2>
+                Access Levels
+            </h2>
+
+
+            <div class="access-info-grid">
+
+                <div class="access-info-card write-card">
+
+                    <div class="access-info-icon">
+                        ✏️
+                    </div>
+
+                    <h3>
+                        Write Access
+                    </h3>
+
+                    <p>
+                        User can add expenses, delete expenses,
+                        update trip settings and modify custom splits.
+                    </p>
+
+                </div>
+
+
+                <div class="access-info-card read-card">
+
+                    <div class="access-info-icon">
+                        👁️
+                    </div>
+
+                    <h3>
+                        Read Only
+                    </h3>
+
+                    <p>
+                        User can view expenses, totals,
+                        settlements and trip information,
+                        but cannot modify data.
+                    </p>
+
+                </div>
+
+
+                <div class="access-info-card admin-card">
+
+                    <div class="access-info-icon">
+                        🔐
+                    </div>
+
+                    <h3>
+                        Administrator
+                    </h3>
+
+                    <p>
+                        Administrator can manage member accounts,
+                        passwords and permissions.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <section class="panel">
+
+            <h2>
+                Important
+            </h2>
+
+            <p class="muted">
+
+                Member passwords are stored as secure password
+                hashes. The administrator cannot view an existing
+                password. Setting a new password replaces the old one.
+
+            </p>
+
+            <p class="muted">
+
+                New accounts initially use
+                <strong>change-me</strong>.
+                Set a proper password from this dashboard before
+                giving the credentials to the member.
+
+            </p>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script>
+
+document.querySelectorAll(
+    'input[name="enabled"]'
+).forEach(function(checkbox) {
+
+    checkbox.addEventListener(
+        "change",
+        function() {
+
+            const status =
+                this
+                .closest("td")
+                .querySelector(".status-text");
+
+            if (status) {
+
+                status.textContent =
+                    this.checked
+                    ? "Enabled"
+                    : "Disabled";
+
+            }
+
+        }
+    );
+
+});
+
+</script>
+
+
+</body>
+</html>

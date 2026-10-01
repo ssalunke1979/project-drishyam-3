@@ -1,5 +1,16 @@
 {
-  "trip_date": "2026-09-29",
-  "contribution_collected": 0.0,
-  "contribution_by": "Hitesh"
+  "trip_date": "2026-10-03",
+  "contribution_collected": 10000.0,
+  "contribution_by": "Hitesh",
+  "custom_final_shares": {},
+  "member_contributions": {
+    "Palash": 2000.0,
+    "Santosh": 2000.0,
+    "Navendu": 0.0,
+    "Vikramsinh": 0.0,
+    "Milin": 2000.0,
+    "Umesh": 2000.0,
+    "Hitesh": 2000.0,
+    "Rahul": 0.0
+  }
 }

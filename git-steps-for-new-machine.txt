@@ -1,0 +1,19 @@
+
+#on new machine need below instructions to follow. 
+git init
+git remote add origin https://github.com/ssalunke1979/project-drishyam-3.git
+git checkout -b trip
+git config user.name "ssalunke1979"
+git config user.email "santoshcyb@gmail.com"
+
+git pull origin trip --allow-unrelated-histories
+
+git checkout trip
+git pull origin trip
+
+#to check manually 
+git status
+git add .
+git commit -m "Update Trip Expense Tracker"
+git push origin trip
+
